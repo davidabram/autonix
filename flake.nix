@@ -49,6 +49,9 @@
             bacon
             cargo-watch
             cargo-edit
+
+            jq
+            diffutils
           ];
 
           shellHook = ''
