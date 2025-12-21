@@ -1,0 +1,11 @@
+{
+  "languages": [
+    {
+      "language": "JavaScript",
+      "detected_from": [
+        "PackageJson",
+        "JsFile"
+      ]
+    }
+  ]
+}

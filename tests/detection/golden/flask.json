@@ -1,0 +1,11 @@
+{
+  "languages": [
+    {
+      "language": "Python",
+      "detected_from": [
+        "PyprojectToml",
+        "PyFile"
+      ]
+    }
+  ]
+}

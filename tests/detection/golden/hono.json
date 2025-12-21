@@ -1,0 +1,16 @@
+{
+  "languages": [
+    {
+      "language": "JavaScript",
+      "detected_from": [
+        "PackageJson",
+        "YarnLock",
+        "BunLockb",
+        "JsFile",
+        "MjsFile",
+        "TsFile",
+        "TsxFile"
+      ]
+    }
+  ]
+}

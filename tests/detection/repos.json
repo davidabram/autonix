@@ -1,0 +1,39 @@
+{
+  "repositories": [
+    {
+      "name": "rustlings",
+      "owner": "rust-lang",
+      "repo": "rustlings",
+      "rev": "v6.4.0",
+      "hash": "sha256-VdIIcpyoCuid3MECVc9aKeIOUlxGlxcG7znqbqo9pjc="
+    },
+    {
+      "name": "flask",
+      "owner": "pallets",
+      "repo": "flask",
+      "rev": "3.1.0",
+      "hash": "sha256-steXbpE9TXRxdl0EQ9D2YcmolOt7WzXL0NrBJEG9+YA="
+    },
+    {
+      "name": "express",
+      "owner": "expressjs",
+      "repo": "express",
+      "rev": "4.21.2",
+      "hash": "sha256-VwyIjmHxVui7qH7/YWTe93kq/pX2shgeCSnS5w5+V4s="
+    },
+    {
+      "name": "hono",
+      "owner": "honojs",
+      "repo": "hono",
+      "rev": "v4.6.14",
+      "hash": "sha256-R4WESZdUrW3GlmiSENTYUQeV6e6fFmKyK+GXO1IXGl0="
+    },
+    {
+      "name": "traefik",
+      "owner": "traefik",
+      "repo": "traefik",
+      "rev": "v3.2.3",
+      "hash": "sha256-OF5HCuMBWSa1JfNE6xu46Oa3sIBHLSrSSXm3M3kTuXU="
+    }
+  ]
+}

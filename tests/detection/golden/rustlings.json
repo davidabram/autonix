@@ -1,0 +1,11 @@
+{
+  "languages": [
+    {
+      "language": "Rust",
+      "detected_from": [
+        "CargoToml",
+        "RsFile"
+      ]
+    }
+  ]
+}

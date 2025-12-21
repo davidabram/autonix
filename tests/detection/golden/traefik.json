@@ -1,0 +1,20 @@
+{
+  "languages": [
+    {
+      "language": "Go",
+      "detected_from": [
+        "GoMod",
+        "GoFile"
+      ]
+    },
+    {
+      "language": "JavaScript",
+      "detected_from": [
+        "JsFile",
+        "MjsFile",
+        "CjsFile",
+        "TsFile"
+      ]
+    }
+  ]
+}

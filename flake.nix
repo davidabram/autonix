@@ -1,5 +1,5 @@
 {
-  description = "autonix"
+  description = "autonix";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -21,8 +21,22 @@
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" "rust-analyzer" ];
         };
+
+        autonix = pkgs.rustPlatform.buildRustPackage {
+          pname = "autonix";
+          version = "0.1.0";
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+        };
       in
       {
+        packages.default = autonix;
+
+        checks = import ./tests/detection/check-repos.nix {
+          inherit pkgs;
+          cli = autonix;
+        };
+
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             rustToolchain
