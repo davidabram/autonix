@@ -1,8 +1,7 @@
 use serde::Serialize;
-pub use std::path::Path;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum Language {
     Go,
     Rust,
@@ -45,7 +44,6 @@ pub enum LanguageDetectionSource {
     PnpmLockYaml,
     BunLock,
     BunLockb,
-    LockJson,
     DenoLock,
     DenoJson,
     DenoJsonc,
@@ -62,177 +60,157 @@ pub enum LanguageDetectionSource {
     TsxFile,
 }
 
-#[derive(Debug, Serialize)]
-pub struct DetectedSource {
-    pub source: LanguageDetectionSource,
-    pub path: Option<PathBuf>,
+impl From<&LanguageDetectionSource> for Language {
+    fn from(source: &LanguageDetectionSource) -> Self {
+        match source {
+            // Go
+            LanguageDetectionSource::GoMod
+            | LanguageDetectionSource::GoWork
+            | LanguageDetectionSource::GoSum
+            | LanguageDetectionSource::GoVersionFile
+            | LanguageDetectionSource::GoFile => Language::Go,
+
+            // Rust
+            LanguageDetectionSource::CargoToml
+            | LanguageDetectionSource::CargoLock
+            | LanguageDetectionSource::RustToolchain
+            | LanguageDetectionSource::RustToolchainToml
+            | LanguageDetectionSource::RsFile => Language::Rust,
+
+            // Python
+            LanguageDetectionSource::RequirementsTxt
+            | LanguageDetectionSource::PyprojectToml
+            | LanguageDetectionSource::Pipfile
+            | LanguageDetectionSource::PipfileLock
+            | LanguageDetectionSource::PoetryLock
+            | LanguageDetectionSource::SetupPy
+            | LanguageDetectionSource::SetupCfg
+            | LanguageDetectionSource::EnvironmentYml
+            | LanguageDetectionSource::PythonVersionFile
+            | LanguageDetectionSource::PyFile => Language::Python,
+
+            // JavaScript/Node
+            LanguageDetectionSource::PackageJson
+            | LanguageDetectionSource::PackageLockJson
+            | LanguageDetectionSource::YarnLock
+            | LanguageDetectionSource::PnpmLockYaml
+            | LanguageDetectionSource::BunLock
+            | LanguageDetectionSource::BunLockb
+            | LanguageDetectionSource::DenoLock
+            | LanguageDetectionSource::DenoJson
+            | LanguageDetectionSource::DenoJsonc
+            | LanguageDetectionSource::TsConfig
+            | LanguageDetectionSource::JsConfig
+            | LanguageDetectionSource::NvmrcFile
+            | LanguageDetectionSource::NodeVersionFile
+            | LanguageDetectionSource::BunVersionFile
+            | LanguageDetectionSource::JsFile
+            | LanguageDetectionSource::MjsFile
+            | LanguageDetectionSource::CjsFile
+            | LanguageDetectionSource::TsFile
+            | LanguageDetectionSource::JsxFile
+            | LanguageDetectionSource::TsxFile => Language::JavaScript,
+        }
+    }
+}
+
+impl From<&LanguageDetectionSignal> for Language {
+    fn from(signal: &LanguageDetectionSignal) -> Self {
+        match signal {
+            LanguageDetectionSignal::Strong { source, .. } => source.into(),
+            LanguageDetectionSignal::Weak(source) => source.into(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
 pub struct LanguageDetection {
     pub language: Language,
-    pub detected_from: Vec<DetectedSource>,
+    pub sources: Vec<LanguageDetectionSignal>,
 }
 
-pub trait LanguageDetector {
-    fn detect(&self, path: &Path) -> Option<LanguageDetection>;
+impl LanguageDetection {
+    pub fn new(language: Language, sources: Vec<LanguageDetectionSignal>) -> Self {
+        Self { language, sources }
+    }
 }
 
-struct DetectorConfig {
-    language: Language,
-    file_patterns: &'static [(&'static str, LanguageDetectionSource)],
-    extension_patterns: &'static [(&'static str, LanguageDetectionSource)],
+#[derive(Debug, Serialize)]
+pub enum LanguageDetectionSignal {
+    Strong {
+        path: PathBuf,
+        source: LanguageDetectionSource,
+    },
+    Weak(LanguageDetectionSource),
 }
 
-fn detect_language(config: &DetectorConfig, path: &Path) -> Option<LanguageDetection> {
-    let mut detected_from = Vec::new();
-    let mut found_extensions = std::collections::HashSet::new();
+impl TryFrom<PathBuf> for LanguageDetectionSignal {
+    type Error = ();
 
-    for entry in walkdir::WalkDir::new(path)
-        .into_iter()
-        .filter_map(Result::ok)
-    {
-        let entry_path = entry.path();
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        let filename = path.file_name().ok_or(())?.to_str().ok_or(())?;
+        let extension = path.extension().ok_or(())?.to_str().ok_or(())?;
 
-        if entry.file_type().is_file() {
-            if let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                for (pattern, source) in config.file_patterns {
-                    if filename == *pattern {
-                        detected_from.push(DetectedSource {
-                            source: source.clone(),
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                        break;
-                    }
-                }
-            }
+        let source = match filename {
+            // Go
+            "go.mod" => Ok(LanguageDetectionSource::GoMod),
+            "go.work" => Ok(LanguageDetectionSource::GoWork),
+            "go.sum" => Ok(LanguageDetectionSource::GoSum),
+            ".go-version" => Ok(LanguageDetectionSource::GoVersionFile),
 
-            if let Some(ext) = entry_path.extension().and_then(|ext| ext.to_str()) {
-                for (pattern, source) in config.extension_patterns {
-                    if ext == *pattern && !found_extensions.contains(*pattern) {
-                        found_extensions.insert(*pattern);
-                        detected_from.push(DetectedSource {
-                            source: source.clone(),
-                            path: None,
-                        });
-                        break;
-                    }
-                }
-            }
+            // Rust
+            "Cargo.toml" => Ok(LanguageDetectionSource::CargoToml),
+            "Cargo.lock" => Ok(LanguageDetectionSource::CargoLock),
+            "rust-toolchain" => Ok(LanguageDetectionSource::RustToolchain),
+            "rust-toolchain.toml" => Ok(LanguageDetectionSource::RustToolchainToml),
+
+            // Python
+            "requirements.txt" => Ok(LanguageDetectionSource::RequirementsTxt),
+            "pyproject.toml" => Ok(LanguageDetectionSource::PyprojectToml),
+            "Pipfile" => Ok(LanguageDetectionSource::Pipfile),
+            "Pipfile.lock" => Ok(LanguageDetectionSource::PipfileLock),
+            "poetry.lock" => Ok(LanguageDetectionSource::PoetryLock),
+            "setup.py" => Ok(LanguageDetectionSource::SetupPy),
+            "setup.cfg" => Ok(LanguageDetectionSource::SetupCfg),
+            "environment.yml" => Ok(LanguageDetectionSource::EnvironmentYml),
+            ".python-version" => Ok(LanguageDetectionSource::PythonVersionFile),
+
+            // JavaScript/Node
+            "package.json" => Ok(LanguageDetectionSource::PackageJson),
+            "package-lock.json" => Ok(LanguageDetectionSource::PackageLockJson),
+            "yarn.lock" => Ok(LanguageDetectionSource::YarnLock),
+            "pnpm-lock.yaml" => Ok(LanguageDetectionSource::PnpmLockYaml),
+            "bun.lock" => Ok(LanguageDetectionSource::BunLock),
+            "bun.lockb" => Ok(LanguageDetectionSource::BunLockb),
+            "deno.lock" => Ok(LanguageDetectionSource::DenoLock),
+            "deno.json" => Ok(LanguageDetectionSource::DenoJson),
+            "deno.jsonc" => Ok(LanguageDetectionSource::DenoJsonc),
+            "tsconfig.json" => Ok(LanguageDetectionSource::TsConfig),
+            "jsconfig.json" => Ok(LanguageDetectionSource::JsConfig),
+            ".nvmrc" => Ok(LanguageDetectionSource::NvmrcFile),
+            ".node-version" => Ok(LanguageDetectionSource::NodeVersionFile),
+            ".bun-version" => Ok(LanguageDetectionSource::BunVersionFile),
+
+            _ => Err(()),
+        };
+
+        if let Ok(source) = source {
+            return Ok(LanguageDetectionSignal::Strong { path, source });
         }
-    }
 
-    if detected_from.is_empty() {
-        None
-    } else {
-        Some(LanguageDetection {
-            language: config.language.clone(),
-            detected_from,
-        })
-    }
-}
-
-const GO_CONFIG: DetectorConfig = DetectorConfig {
-    language: Language::Go,
-    file_patterns: &[
-        ("go.mod", LanguageDetectionSource::GoMod),
-        ("go.work", LanguageDetectionSource::GoWork),
-        ("go.sum", LanguageDetectionSource::GoSum),
-        (".go-version", LanguageDetectionSource::GoVersionFile),
-    ],
-    extension_patterns: &[("go", LanguageDetectionSource::GoFile)],
-};
-
-const RUST_CONFIG: DetectorConfig = DetectorConfig {
-    language: Language::Rust,
-    file_patterns: &[
-        ("Cargo.toml", LanguageDetectionSource::CargoToml),
-        ("Cargo.lock", LanguageDetectionSource::CargoLock),
-        ("rust-toolchain", LanguageDetectionSource::RustToolchain),
-        (
-            "rust-toolchain.toml",
-            LanguageDetectionSource::RustToolchainToml,
-        ),
-    ],
-    extension_patterns: &[("rs", LanguageDetectionSource::RsFile)],
-};
-
-const PYTHON_CONFIG: DetectorConfig = DetectorConfig {
-    language: Language::Python,
-    file_patterns: &[
-        ("requirements.txt", LanguageDetectionSource::RequirementsTxt),
-        ("pyproject.toml", LanguageDetectionSource::PyprojectToml),
-        ("Pipfile", LanguageDetectionSource::Pipfile),
-        ("Pipfile.lock", LanguageDetectionSource::PipfileLock),
-        ("poetry.lock", LanguageDetectionSource::PoetryLock),
-        ("setup.py", LanguageDetectionSource::SetupPy),
-        ("setup.cfg", LanguageDetectionSource::SetupCfg),
-        ("environment.yml", LanguageDetectionSource::EnvironmentYml),
-        (".python-version", LanguageDetectionSource::PythonVersionFile),
-    ],
-    extension_patterns: &[("py", LanguageDetectionSource::PyFile)],
-};
-
-const JAVASCRIPT_CONFIG: DetectorConfig = DetectorConfig {
-    language: Language::JavaScript,
-    file_patterns: &[
-        ("package.json", LanguageDetectionSource::PackageJson),
-        (
-            "package-lock.json",
-            LanguageDetectionSource::PackageLockJson,
-        ),
-        ("yarn.lock", LanguageDetectionSource::YarnLock),
-        ("pnpm-lock.yaml", LanguageDetectionSource::PnpmLockYaml),
-        ("bun.lock", LanguageDetectionSource::BunLock),
-        ("bun.lockb", LanguageDetectionSource::BunLockb),
-        ("lock.json", LanguageDetectionSource::LockJson),
-        ("deno.lock", LanguageDetectionSource::DenoLock),
-        ("deno.json", LanguageDetectionSource::DenoJson),
-        ("deno.jsonc", LanguageDetectionSource::DenoJsonc),
-        ("tsconfig.json", LanguageDetectionSource::TsConfig),
-        ("jsconfig.json", LanguageDetectionSource::JsConfig),
-        (".nvmrc", LanguageDetectionSource::NvmrcFile),
-        (".node-version", LanguageDetectionSource::NodeVersionFile),
-        (".bun-version", LanguageDetectionSource::BunVersionFile),
-    ],
-    extension_patterns: &[
-        ("js", LanguageDetectionSource::JsFile),
-        ("mjs", LanguageDetectionSource::MjsFile),
-        ("cjs", LanguageDetectionSource::CjsFile),
-        ("ts", LanguageDetectionSource::TsFile),
-        ("jsx", LanguageDetectionSource::JsxFile),
-        ("tsx", LanguageDetectionSource::TsxFile),
-    ],
-};
-
-pub struct GoDetector;
-
-impl LanguageDetector for GoDetector {
-    fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        detect_language(&GO_CONFIG, path)
-    }
-}
-
-pub struct RustDetector;
-
-impl LanguageDetector for RustDetector {
-    fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        detect_language(&RUST_CONFIG, path)
-    }
-}
-
-pub struct PythonDetector;
-
-impl LanguageDetector for PythonDetector {
-    fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        detect_language(&PYTHON_CONFIG, path)
-    }
-}
-
-pub struct JavaScriptDetector;
-
-impl LanguageDetector for JavaScriptDetector {
-    fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        detect_language(&JAVASCRIPT_CONFIG, path)
+        match extension {
+            //Extensions
+            "go" => Ok(LanguageDetectionSource::GoFile),
+            "rs" => Ok(LanguageDetectionSource::RsFile),
+            "py" => Ok(LanguageDetectionSource::PyFile),
+            "js" => Ok(LanguageDetectionSource::JsFile),
+            "mjs" => Ok(LanguageDetectionSource::MjsFile),
+            "cjs" => Ok(LanguageDetectionSource::CjsFile),
+            "ts" => Ok(LanguageDetectionSource::TsFile),
+            "jsx" => Ok(LanguageDetectionSource::JsxFile),
+            "tsx" => Ok(LanguageDetectionSource::TsxFile),
+            _ => Err(()),
+        }
+        .map(LanguageDetectionSignal::Weak)
     }
 }
