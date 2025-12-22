@@ -17,24 +17,15 @@ pub struct ProjectMetadata {
     pub versions: Vec<VersionDetection>,
 }
 
-pub struct DetectionEngine {
-    version_detectors: Vec<Box<dyn VersionDetector>>,
-}
+pub struct DetectionEngine;
 
 impl DetectionEngine {
     pub fn new() -> Self {
-        let version_detectors: Vec<Box<dyn VersionDetector>> = vec![
-            Box::new(version::GoVersionDetector),
-            Box::new(version::RustVersionDetector),
-            Box::new(version::PythonVersionDetector),
-            Box::new(version::JavaScriptVersionDetector),
-        ];
-
-        DetectionEngine { version_detectors }
+        DetectionEngine
     }
 
     pub fn detect(&self, path: &Path) -> ProjectMetadata {
-        let languages = DirectoryIterator(VecDeque::from([path.to_path_buf()]))
+        let languages: Vec<LanguageDetection> = DirectoryIterator(VecDeque::from([path.to_path_buf()]))
             .filter_map(|path| LanguageDetectionSignal::try_from(path).ok())
             .fold(
                 HashMap::<Language, Vec<LanguageDetectionSignal>>::new(),
@@ -48,15 +39,10 @@ impl DetectionEngine {
             .map(|(language, sources)| LanguageDetection::new(language, sources))
             .collect();
 
-        let mut versions = Vec::new();
-        for lang_detection in &languages {
-            for version_detector in &self.version_detectors {
-                if let Some(version_detection) = version_detector.detect(lang_detection) {
-                    versions.push(version_detection);
-                    break;
-                }
-            }
-        }
+        let versions = languages
+            .iter()
+            .filter_map(VersionDetection::from_language_detection)
+            .collect();
 
         ProjectMetadata { languages, versions }
     }
@@ -67,13 +53,12 @@ struct DirectoryIterator(VecDeque<PathBuf>);
 impl Iterator for DirectoryIterator {
     type Item = PathBuf;
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.pop_front().map(|p| {
-            if p.is_dir() {
-                p.read_dir()
-                    .unwrap()
-                    .for_each(|p| self.0.push_back(p.unwrap().path()));
+        self.0.pop_front().inspect(|p| {
+            if p.is_dir() && let Ok(entries) = p.read_dir() {
+                entries
+                    .filter_map(|entry| entry.ok())
+                    .for_each(|entry| self.0.push_back(entry.path()));
             }
-            p
         })
     }
 }
