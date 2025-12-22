@@ -2,30 +2,39 @@
   "languages": [
     {
       "language": "Rust",
-      "detected_from": [
+      "sources": [
         {
-          "source": "RsFile",
-          "path": null
+          "Strong": {
+            "path": "./Cargo.toml",
+            "source": "CargoToml"
+          }
         },
         {
-          "source": "CargoToml",
-          "path": "./tests/test_exercises/dev/Cargo.toml"
+          "Strong": {
+            "path": "./Cargo.lock",
+            "source": "CargoLock"
+          }
         },
         {
-          "source": "CargoToml",
-          "path": "./dev/Cargo.toml"
+          "Weak": "RsFile"
         },
         {
-          "source": "CargoToml",
-          "path": "./rustlings-macros/Cargo.toml"
+          "Strong": {
+            "path": "./dev/Cargo.toml",
+            "source": "CargoToml"
+          }
         },
         {
-          "source": "CargoToml",
-          "path": "./Cargo.toml"
+          "Strong": {
+            "path": "./rustlings-macros/Cargo.toml",
+            "source": "CargoToml"
+          }
         },
         {
-          "source": "CargoLock",
-          "path": "./Cargo.lock"
+          "Strong": {
+            "path": "./tests/test_exercises/dev/Cargo.toml",
+            "source": "CargoToml"
+          }
         }
       ]
     }

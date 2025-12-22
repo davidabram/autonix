@@ -2,14 +2,15 @@
   "languages": [
     {
       "language": "JavaScript",
-      "detected_from": [
+      "sources": [
         {
-          "source": "JsFile",
-          "path": null
+          "Strong": {
+            "path": "./package.json",
+            "source": "PackageJson"
+          }
         },
         {
-          "source": "PackageJson",
-          "path": "./package.json"
+          "Weak": "JsFile"
         }
       ]
     }
@@ -19,17 +20,17 @@
       "language": "JavaScript",
       "versions": [
         {
+          "raw": ">= 0.10.0",
           "parsed": {
-            "build": null,
-            "constraint": "GreaterOrEqual",
             "major": 0,
             "minor": 10,
             "patch": 0,
-            "pre_release": null
+            "pre_release": null,
+            "build": null,
+            "constraint": "GreaterOrEqual"
           },
-          "path": "./package.json",
-          "raw": ">= 0.10.0",
-          "source": "PackageJsonEnginesNode"
+          "source": "PackageJsonEnginesNode",
+          "path": "./package.json"
         }
       ]
     }

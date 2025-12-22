@@ -2,72 +2,79 @@
   "languages": [
     {
       "language": "Go",
-      "detected_from": [
+      "sources": [
         {
-          "source": "GoFile",
-          "path": null
+          "Strong": {
+            "path": "./go.sum",
+            "source": "GoSum"
+          }
         },
         {
-          "source": "GoSum",
-          "path": "./pkg/plugins/fixtures/withoutsocket/go.sum"
+          "Weak": "GoFile"
         },
         {
-          "source": "GoMod",
-          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod"
+          "Strong": {
+            "path": "./go.mod",
+            "source": "GoMod"
+          }
         },
         {
-          "source": "GoSum",
-          "path": "./go.sum"
+          "Strong": {
+            "path": "./pkg/plugins/fixtures/withoutsocket/go.sum",
+            "source": "GoSum"
+          }
         },
         {
-          "source": "GoMod",
-          "path": "./go.mod"
+          "Strong": {
+            "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+            "source": "GoMod"
+          }
         }
       ]
     },
     {
       "language": "Python",
-      "detected_from": [
+      "sources": [
         {
-          "source": "RequirementsTxt",
-          "path": "./docs/requirements.txt"
+          "Strong": {
+            "path": "./docs/requirements.txt",
+            "source": "RequirementsTxt"
+          }
         }
       ]
     },
     {
       "language": "JavaScript",
-      "detected_from": [
+      "sources": [
         {
-          "source": "JsFile",
-          "path": null
+          "Weak": "CjsFile"
         },
         {
-          "source": "CjsFile",
-          "path": null
+          "Strong": {
+            "path": "./webui/jsconfig.json",
+            "source": "JsConfig"
+          }
         },
         {
-          "source": "JsConfig",
-          "path": "./webui/jsconfig.json"
+          "Weak": "JsFile"
         },
         {
-          "source": "NvmrcFile",
-          "path": "./webui/.nvmrc"
+          "Strong": {
+            "path": "./webui/package.json",
+            "source": "PackageJson"
+          }
         },
         {
-          "source": "TsFile",
-          "path": null
+          "Weak": "MjsFile"
         },
         {
-          "source": "PackageJson",
-          "path": "./webui/package.json"
+          "Strong": {
+            "path": "./webui/yarn.lock",
+            "source": "YarnLock"
+          }
         },
         {
-          "source": "MjsFile",
-          "path": null
-        },
-        {
-          "source": "YarnLock",
-          "path": "./webui/yarn.lock"
+          "Weak": "TsFile"
         }
       ]
     }
@@ -77,30 +84,30 @@
       "language": "Go",
       "versions": [
         {
+          "raw": "1.23.0",
           "parsed": {
-            "build": null,
-            "constraint": "Exact",
             "major": 1,
             "minor": 23,
             "patch": 0,
-            "pre_release": null
+            "pre_release": null,
+            "build": null,
+            "constraint": "Exact"
           },
-          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
-          "raw": "1.23.0",
-          "source": "GoModDirective"
+          "source": "GoModDirective",
+          "path": "./go.mod"
         },
         {
+          "raw": "1.23.0",
           "parsed": {
-            "build": null,
-            "constraint": "Exact",
             "major": 1,
             "minor": 23,
             "patch": 0,
-            "pre_release": null
+            "pre_release": null,
+            "build": null,
+            "constraint": "Exact"
           },
-          "path": "./go.mod",
-          "raw": "1.23.0",
-          "source": "GoModDirective"
+          "source": "GoModDirective",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod"
         }
       ]
     },
@@ -108,30 +115,17 @@
       "language": "JavaScript",
       "versions": [
         {
+          "raw": "^22 || ^20 || ^18 || ^16",
           "parsed": {
-            "build": null,
-            "constraint": "Exact",
-            "major": 20,
-            "minor": 11,
-            "patch": 0,
-            "pre_release": null
-          },
-          "path": "./webui/.nvmrc",
-          "raw": "20.11.0",
-          "source": "NvmrcFile"
-        },
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "Caret",
             "major": 22,
             "minor": null,
             "patch": null,
-            "pre_release": null
+            "pre_release": null,
+            "build": null,
+            "constraint": "Caret"
           },
-          "path": "./webui/package.json",
-          "raw": "^22 || ^20 || ^18 || ^16",
-          "source": "PackageJsonEnginesNode"
+          "source": "PackageJsonEnginesNode",
+          "path": "./webui/package.json"
         }
       ]
     }

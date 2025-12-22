@@ -42,8 +42,14 @@ let
         exit 1
       fi
 
-      jq --sort-keys . "$TMPDIR/actual.json" > "$TMPDIR/actual-normalized.json"
-      jq --sort-keys . ${goldenFile} > "$TMPDIR/expected-normalized.json"
+      jq --sort-keys '
+        .languages |= sort_by(.language) |
+        .versions |= sort_by(.language)
+      ' "$TMPDIR/actual.json" > "$TMPDIR/actual-normalized.json"
+      jq --sort-keys '
+        .languages |= sort_by(.language) |
+        .versions |= sort_by(.language)
+      ' ${goldenFile} > "$TMPDIR/expected-normalized.json"
 
       if ! diff -u "$TMPDIR/expected-normalized.json" "$TMPDIR/actual-normalized.json" > "$TMPDIR/diff.txt"; then
         echo "Output does not match golden file for ${repo.name}"
