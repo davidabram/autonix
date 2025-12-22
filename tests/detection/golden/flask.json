@@ -2,30 +2,39 @@
   "languages": [
     {
       "language": "Python",
-      "detected_from": [
+      "sources": [
         {
-          "source": "PyFile",
-          "path": null
+          "Strong": {
+            "path": "./pyproject.toml",
+            "source": "PyprojectToml"
+          }
         },
         {
-          "source": "PyprojectToml",
-          "path": "./pyproject.toml"
+          "Weak": "PyFile"
         },
         {
-          "source": "PyprojectToml",
-          "path": "./examples/celery/pyproject.toml"
+          "Strong": {
+            "path": "./examples/celery/pyproject.toml",
+            "source": "PyprojectToml"
+          }
         },
         {
-          "source": "RequirementsTxt",
-          "path": "./examples/celery/requirements.txt"
+          "Strong": {
+            "path": "./examples/celery/requirements.txt",
+            "source": "RequirementsTxt"
+          }
         },
         {
-          "source": "PyprojectToml",
-          "path": "./examples/javascript/pyproject.toml"
+          "Strong": {
+            "path": "./examples/javascript/pyproject.toml",
+            "source": "PyprojectToml"
+          }
         },
         {
-          "source": "PyprojectToml",
-          "path": "./examples/tutorial/pyproject.toml"
+          "Strong": {
+            "path": "./examples/tutorial/pyproject.toml",
+            "source": "PyprojectToml"
+          }
         }
       ]
     }
@@ -35,17 +44,17 @@
       "language": "Python",
       "versions": [
         {
+          "raw": ">=3.9",
           "parsed": {
-            "build": null,
-            "constraint": "GreaterOrEqual",
             "major": 3,
             "minor": 9,
             "patch": null,
-            "pre_release": null
+            "pre_release": null,
+            "build": null,
+            "constraint": "GreaterOrEqual"
           },
-          "path": "./pyproject.toml",
-          "raw": ">=3.9",
-          "source": "PyprojectRequiresPython"
+          "source": "PyprojectRequiresPython",
+          "path": "./pyproject.toml"
         }
       ]
     }

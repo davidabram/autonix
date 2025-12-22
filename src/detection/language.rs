@@ -130,7 +130,17 @@ pub struct LanguageDetection {
 }
 
 impl LanguageDetection {
-    pub fn new(language: Language, sources: Vec<LanguageDetectionSignal>) -> Self {
+    pub fn new(language: Language, mut sources: Vec<LanguageDetectionSignal>) -> Self {
+        use std::collections::HashSet;
+        let mut seen_weak: HashSet<String> = HashSet::new();
+        sources.retain(|signal| match signal {
+            LanguageDetectionSignal::Strong { .. } => true,
+            LanguageDetectionSignal::Weak(source) => {
+                let source_str = format!("{:?}", source);
+                seen_weak.insert(source_str)
+            }
+        });
+
         Self { language, sources }
     }
 }
@@ -199,7 +209,6 @@ impl TryFrom<PathBuf> for LanguageDetectionSignal {
         }
 
         match extension {
-            //Extensions
             "go" => Ok(LanguageDetectionSource::GoFile),
             "rs" => Ok(LanguageDetectionSource::RsFile),
             "py" => Ok(LanguageDetectionSource::PyFile),
