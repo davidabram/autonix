@@ -62,8 +62,23 @@ pub struct VersionDetection {
     pub versions: Vec<VersionInfo>,
 }
 
-pub trait VersionDetector {
-    fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection>;
+impl VersionDetection {
+    pub fn from_language_detection(lang_detection: &LanguageDetection) -> Option<Self> {
+        let versions: Vec<VersionInfo> = lang_detection.sources
+            .iter()
+            .filter_map(|signal| Vec::<VersionInfo>::try_from(signal).ok())
+            .flatten()
+            .collect();
+
+        if versions.is_empty() {
+            None
+        } else {
+            Some(VersionDetection {
+                language: lang_detection.language.clone(),
+                versions,
+            })
+        }
+    }
 }
 
 fn parse_constraint(s: &str) -> (VersionConstraint, &str) {
@@ -331,95 +346,44 @@ fn parse_bun_version_file(path: &PathBuf) -> Vec<VersionInfo> {
     parse_simple_version_file(path, VersionSource::BunVersionFile)
 }
 
-fn detect_version_for_language(
-    lang_detection: &LanguageDetection,
-    expected_language: &Language,
-    parser: impl Fn(&LanguageDetectionSource, &PathBuf) -> Vec<VersionInfo>,
-) -> Option<VersionDetection> {
-    if std::mem::discriminant(&lang_detection.language) != std::mem::discriminant(expected_language) {
-        return None;
-    }
+impl TryFrom<&LanguageDetectionSignal> for Vec<VersionInfo> {
+    type Error = ();
 
-    let mut versions = Vec::new();
-
-    for signal in &lang_detection.sources {
+    fn try_from(signal: &LanguageDetectionSignal) -> Result<Self, Self::Error> {
         match signal {
             LanguageDetectionSignal::Strong { path, source } => {
-                versions.extend(parser(source, path));
+                let versions = match source {
+                    // Go
+                    LanguageDetectionSource::GoMod => parse_go_mod(path),
+                    LanguageDetectionSource::GoVersionFile => parse_go_version_file(path),
+
+                    // Rust
+                    LanguageDetectionSource::CargoToml => parse_cargo_toml_rust_version(path),
+                    LanguageDetectionSource::RustToolchain => parse_rust_toolchain(path),
+                    LanguageDetectionSource::RustToolchainToml => parse_rust_toolchain_toml(path),
+
+                    // Python
+                    LanguageDetectionSource::PyprojectToml => parse_pyproject_toml(path),
+                    LanguageDetectionSource::PythonVersionFile => parse_python_version_file(path),
+                    LanguageDetectionSource::Pipfile => parse_pipfile(path),
+                    LanguageDetectionSource::SetupPy => parse_setup_py(path),
+
+                    // JavaScript/Node
+                    LanguageDetectionSource::PackageJson => parse_package_json(path),
+                    LanguageDetectionSource::NvmrcFile => parse_nvmrc(path),
+                    LanguageDetectionSource::NodeVersionFile => parse_node_version_file(path),
+                    LanguageDetectionSource::BunVersionFile => parse_bun_version_file(path),
+
+                    _ => vec![],
+                };
+
+                if versions.is_empty() {
+                    Err(())
+                } else {
+                    Ok(versions)
+                }
             }
-            LanguageDetectionSignal::Weak(_) => {
-                // Weak signals don't have paths, skip them
-            }
+            LanguageDetectionSignal::Weak(_) => Err(()),
         }
-    }
-
-    if versions.is_empty() {
-        None
-    } else {
-        Some(VersionDetection {
-            language: lang_detection.language.clone(),
-            versions,
-        })
-    }
-}
-
-pub struct GoVersionDetector;
-
-impl VersionDetector for GoVersionDetector {
-    fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
-        detect_version_for_language(lang_detection, &Language::Go, |source, path| {
-            match source {
-                LanguageDetectionSource::GoMod => parse_go_mod(path),
-                LanguageDetectionSource::GoVersionFile => parse_go_version_file(path),
-                _ => vec![],
-            }
-        })
-    }
-}
-
-pub struct RustVersionDetector;
-
-impl VersionDetector for RustVersionDetector {
-    fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
-        detect_version_for_language(lang_detection, &Language::Rust, |source, path| {
-            match source {
-                LanguageDetectionSource::CargoToml => parse_cargo_toml_rust_version(path),
-                LanguageDetectionSource::RustToolchain => parse_rust_toolchain(path),
-                LanguageDetectionSource::RustToolchainToml => parse_rust_toolchain_toml(path),
-                _ => vec![],
-            }
-        })
-    }
-}
-
-pub struct PythonVersionDetector;
-
-impl VersionDetector for PythonVersionDetector {
-    fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
-        detect_version_for_language(lang_detection, &Language::Python, |source, path| {
-            match source {
-                LanguageDetectionSource::PyprojectToml => parse_pyproject_toml(path),
-                LanguageDetectionSource::PythonVersionFile => parse_python_version_file(path),
-                LanguageDetectionSource::Pipfile => parse_pipfile(path),
-                LanguageDetectionSource::SetupPy => parse_setup_py(path),
-                _ => vec![],
-            }
-        })
-    }
-}
-
-pub struct JavaScriptVersionDetector;
-
-impl VersionDetector for JavaScriptVersionDetector {
-    fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
-        detect_version_for_language(lang_detection, &Language::JavaScript, |source, path| {
-            match source {
-                LanguageDetectionSource::PackageJson => parse_package_json(path),
-                LanguageDetectionSource::NvmrcFile => parse_nvmrc(path),
-                LanguageDetectionSource::NodeVersionFile => parse_node_version_file(path),
-                LanguageDetectionSource::BunVersionFile => parse_bun_version_file(path),
-                _ => vec![],
-            }
-        })
     }
 }
