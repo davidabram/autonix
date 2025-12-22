@@ -3,19 +3,10 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub enum Language {
-    Php,
     Go,
-    Java,
     Rust,
-    Ruby,
-    Elixir,
     Python,
-    DotNet,
     JavaScript,
-    Gleam,
-    Cpp,
-    Staticfile,
-    Shell,
 }
 
 #[derive(Debug, Serialize)]
@@ -23,16 +14,26 @@ pub enum LanguageDetectionSource {
     //Go
     GoMod,
     GoWork,
+    GoSum,
+    GoVersion,
     GoFile,
 
     //Rust
     CargoToml,
+    CargoLock,
+    RustToolchain,
+    RustToolchainToml,
     RsFile,
 
     //Python,
     RequirementsTxt,
     PyprojectToml,
     Pipfile,
+    PipfileLock,
+    PoetryLock,
+    SetupPy,
+    SetupCfg,
+    EnvironmentYml,
     PyFile,
 
     //NodeJS
@@ -44,6 +45,10 @@ pub enum LanguageDetectionSource {
     BunLockb,
     LockJson,
     DenoLock,
+    DenoJson,
+    DenoJsonc,
+    TsConfig,
+    JsConfig,
     JsFile,
     MjsFile,
     CjsFile,
@@ -76,6 +81,14 @@ impl LanguageDetector for GoDetector {
             detected_from.push(LanguageDetectionSource::GoWork);
         }
 
+        if path.join("go.sum").exists() {
+            detected_from.push(LanguageDetectionSource::GoSum);
+        }
+
+        if path.join(".go-version").exists() {
+            detected_from.push(LanguageDetectionSource::GoVersion);
+        }
+
         if walkdir::WalkDir::new(path)
             .into_iter()
             .filter_map(Result::ok)
@@ -103,6 +116,18 @@ impl LanguageDetector for RustDetector {
 
         if path.join("Cargo.toml").exists() {
             detected_from.push(LanguageDetectionSource::CargoToml);
+        }
+
+        if path.join("Cargo.lock").exists() {
+            detected_from.push(LanguageDetectionSource::CargoLock);
+        }
+
+        if path.join("rust-toolchain").exists() {
+            detected_from.push(LanguageDetectionSource::RustToolchain);
+        }
+
+        if path.join("rust-toolchain.toml").exists() {
+            detected_from.push(LanguageDetectionSource::RustToolchainToml);
         }
 
         if walkdir::WalkDir::new(path)
@@ -140,6 +165,26 @@ impl LanguageDetector for PythonDetector {
 
         if path.join("Pipfile").exists() {
             detected_from.push(LanguageDetectionSource::Pipfile);
+        }
+
+        if path.join("Pipfile.lock").exists() {
+            detected_from.push(LanguageDetectionSource::PipfileLock);
+        }
+
+        if path.join("poetry.lock").exists() {
+            detected_from.push(LanguageDetectionSource::PoetryLock);
+        }
+
+        if path.join("setup.py").exists() {
+            detected_from.push(LanguageDetectionSource::SetupPy);
+        }
+
+        if path.join("setup.cfg").exists() {
+            detected_from.push(LanguageDetectionSource::SetupCfg);
+        }
+
+        if path.join("environment.yml").exists() {
+            detected_from.push(LanguageDetectionSource::EnvironmentYml);
         }
 
         if walkdir::WalkDir::new(path)
@@ -197,6 +242,22 @@ impl LanguageDetector for JavaScriptDetector {
 
         if path.join("deno.lock").exists() {
             detected_from.push(LanguageDetectionSource::DenoLock);
+        }
+
+        if path.join("deno.json").exists() {
+            detected_from.push(LanguageDetectionSource::DenoJson);
+        }
+
+        if path.join("deno.jsonc").exists() {
+            detected_from.push(LanguageDetectionSource::DenoJsonc);
+        }
+
+        if path.join("tsconfig.json").exists() {
+            detected_from.push(LanguageDetectionSource::TsConfig);
+        }
+
+        if path.join("jsconfig.json").exists() {
+            detected_from.push(LanguageDetectionSource::JsConfig);
         }
 
         let mut has_js = false;

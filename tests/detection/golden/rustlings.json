@@ -4,6 +4,7 @@
       "language": "Rust",
       "detected_from": [
         "CargoToml",
+        "CargoLock",
         "RsFile"
       ]
     }

@@ -4,6 +4,7 @@
       "language": "Go",
       "detected_from": [
         "GoMod",
+        "GoSum",
         "GoFile"
       ]
     },

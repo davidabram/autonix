@@ -8,20 +8,16 @@ use std::path::PathBuf;
 #[command(name = "autonix")]
 #[command(about = "Detect project languages and build tools", long_about = None)]
 struct Args {
-    /// Output format
     #[arg(long, value_enum, default_value = "debug")]
     format: OutputFormat,
 
-    /// Path to analyze
     #[arg(default_value = ".")]
     path: PathBuf,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
 enum OutputFormat {
-    /// Debug format (pretty-printed)
     Debug,
-    /// JSON format
     Json,
 }
 

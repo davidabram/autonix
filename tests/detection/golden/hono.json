@@ -6,6 +6,7 @@
         "PackageJson",
         "YarnLock",
         "BunLockb",
+        "TsConfig",
         "JsFile",
         "MjsFile",
         "TsFile",
