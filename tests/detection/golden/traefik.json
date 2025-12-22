@@ -50,6 +50,10 @@
           "path": "./webui/jsconfig.json"
         },
         {
+          "source": "NvmrcFile",
+          "path": "./webui/.nvmrc"
+        },
+        {
           "source": "TsFile",
           "path": null
         },
@@ -64,6 +68,70 @@
         {
           "source": "YarnLock",
           "path": "./webui/yarn.lock"
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "language": "Go",
+      "versions": [
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "Exact",
+            "major": 1,
+            "minor": 23,
+            "patch": 0,
+            "pre_release": null
+          },
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+          "raw": "1.23.0",
+          "source": "GoModDirective"
+        },
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "Exact",
+            "major": 1,
+            "minor": 23,
+            "patch": 0,
+            "pre_release": null
+          },
+          "path": "./go.mod",
+          "raw": "1.23.0",
+          "source": "GoModDirective"
+        }
+      ]
+    },
+    {
+      "language": "JavaScript",
+      "versions": [
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "Exact",
+            "major": 20,
+            "minor": 11,
+            "patch": 0,
+            "pre_release": null
+          },
+          "path": "./webui/.nvmrc",
+          "raw": "20.11.0",
+          "source": "NvmrcFile"
+        },
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "Caret",
+            "major": 22,
+            "minor": null,
+            "patch": null,
+            "pre_release": null
+          },
+          "path": "./webui/package.json",
+          "raw": "^22 || ^20 || ^18 || ^16",
+          "source": "PackageJsonEnginesNode"
         }
       ]
     }

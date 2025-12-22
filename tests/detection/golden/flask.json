@@ -29,5 +29,25 @@
         }
       ]
     }
+  ],
+  "versions": [
+    {
+      "language": "Python",
+      "versions": [
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "GreaterOrEqual",
+            "major": 3,
+            "minor": 9,
+            "patch": null,
+            "pre_release": null
+          },
+          "path": "./pyproject.toml",
+          "raw": ">=3.9",
+          "source": "PyprojectRequiresPython"
+        }
+      ]
+    }
   ]
 }

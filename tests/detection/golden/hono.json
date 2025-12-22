@@ -117,5 +117,25 @@
         }
       ]
     }
+  ],
+  "versions": [
+    {
+      "language": "JavaScript",
+      "versions": [
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "GreaterOrEqual",
+            "major": 16,
+            "minor": 9,
+            "patch": 0,
+            "pre_release": null
+          },
+          "path": "./package.json",
+          "raw": ">=16.9.0",
+          "source": "PackageJsonEnginesNode"
+        }
+      ]
+    }
   ]
 }

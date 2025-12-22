@@ -30,16 +30,12 @@ fn main() {
         OutputFormat::Debug => {
             println!("{:#?}", metadata);
         }
-        OutputFormat::Json => {
-            match serde_json::to_string_pretty(&metadata) {
-                Ok(json) => println!("{}", json),
-                Err(e) => {
-                    eprintln!("Error serializing to JSON: {}", e);
-                    std::process::exit(1);
-                }
+        OutputFormat::Json => match serde_json::to_string_pretty(&metadata) {
+            Ok(json) => println!("{}", json),
+            Err(e) => {
+                eprintln!("Error serializing to JSON: {}", e);
+                std::process::exit(1);
             }
-        }
+        },
     }
 }
-
-

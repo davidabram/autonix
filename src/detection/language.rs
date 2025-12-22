@@ -1,6 +1,6 @@
+use serde::Serialize;
 pub use std::path::Path;
 use std::path::PathBuf;
-use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Language {
@@ -16,7 +16,7 @@ pub enum LanguageDetectionSource {
     GoMod,
     GoWork,
     GoSum,
-    GoVersion,
+    GoVersionFile,
     GoFile,
 
     //Rust
@@ -35,6 +35,7 @@ pub enum LanguageDetectionSource {
     SetupPy,
     SetupCfg,
     EnvironmentYml,
+    PythonVersionFile,
     PyFile,
 
     //NodeJS
@@ -50,6 +51,9 @@ pub enum LanguageDetectionSource {
     DenoJsonc,
     TsConfig,
     JsConfig,
+    NvmrcFile,
+    NodeVersionFile,
+    BunVersionFile,
     JsFile,
     MjsFile,
     CjsFile,
@@ -84,7 +88,10 @@ fn detect_language(config: &DetectorConfig, path: &Path) -> Option<LanguageDetec
     let mut detected_from = Vec::new();
     let mut found_extensions = std::collections::HashSet::new();
 
-    for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
+    for entry in walkdir::WalkDir::new(path)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         let entry_path = entry.path();
 
         if entry.file_type().is_file() {
@@ -131,11 +138,9 @@ const GO_CONFIG: DetectorConfig = DetectorConfig {
         ("go.mod", LanguageDetectionSource::GoMod),
         ("go.work", LanguageDetectionSource::GoWork),
         ("go.sum", LanguageDetectionSource::GoSum),
-        (".go-version", LanguageDetectionSource::GoVersion),
+        (".go-version", LanguageDetectionSource::GoVersionFile),
     ],
-    extension_patterns: &[
-        ("go", LanguageDetectionSource::GoFile),
-    ],
+    extension_patterns: &[("go", LanguageDetectionSource::GoFile)],
 };
 
 const RUST_CONFIG: DetectorConfig = DetectorConfig {
@@ -144,11 +149,12 @@ const RUST_CONFIG: DetectorConfig = DetectorConfig {
         ("Cargo.toml", LanguageDetectionSource::CargoToml),
         ("Cargo.lock", LanguageDetectionSource::CargoLock),
         ("rust-toolchain", LanguageDetectionSource::RustToolchain),
-        ("rust-toolchain.toml", LanguageDetectionSource::RustToolchainToml),
+        (
+            "rust-toolchain.toml",
+            LanguageDetectionSource::RustToolchainToml,
+        ),
     ],
-    extension_patterns: &[
-        ("rs", LanguageDetectionSource::RsFile),
-    ],
+    extension_patterns: &[("rs", LanguageDetectionSource::RsFile)],
 };
 
 const PYTHON_CONFIG: DetectorConfig = DetectorConfig {
@@ -162,17 +168,19 @@ const PYTHON_CONFIG: DetectorConfig = DetectorConfig {
         ("setup.py", LanguageDetectionSource::SetupPy),
         ("setup.cfg", LanguageDetectionSource::SetupCfg),
         ("environment.yml", LanguageDetectionSource::EnvironmentYml),
+        (".python-version", LanguageDetectionSource::PythonVersionFile),
     ],
-    extension_patterns: &[
-        ("py", LanguageDetectionSource::PyFile),
-    ],
+    extension_patterns: &[("py", LanguageDetectionSource::PyFile)],
 };
 
 const JAVASCRIPT_CONFIG: DetectorConfig = DetectorConfig {
     language: Language::JavaScript,
     file_patterns: &[
         ("package.json", LanguageDetectionSource::PackageJson),
-        ("package-lock.json", LanguageDetectionSource::PackageLockJson),
+        (
+            "package-lock.json",
+            LanguageDetectionSource::PackageLockJson,
+        ),
         ("yarn.lock", LanguageDetectionSource::YarnLock),
         ("pnpm-lock.yaml", LanguageDetectionSource::PnpmLockYaml),
         ("bun.lock", LanguageDetectionSource::BunLock),
@@ -183,6 +191,9 @@ const JAVASCRIPT_CONFIG: DetectorConfig = DetectorConfig {
         ("deno.jsonc", LanguageDetectionSource::DenoJsonc),
         ("tsconfig.json", LanguageDetectionSource::TsConfig),
         ("jsconfig.json", LanguageDetectionSource::JsConfig),
+        (".nvmrc", LanguageDetectionSource::NvmrcFile),
+        (".node-version", LanguageDetectionSource::NodeVersionFile),
+        (".bun-version", LanguageDetectionSource::BunVersionFile),
     ],
     extension_patterns: &[
         ("js", LanguageDetectionSource::JsFile),

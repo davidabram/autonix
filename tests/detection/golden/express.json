@@ -13,5 +13,25 @@
         }
       ]
     }
+  ],
+  "versions": [
+    {
+      "language": "JavaScript",
+      "versions": [
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "GreaterOrEqual",
+            "major": 0,
+            "minor": 10,
+            "patch": 0,
+            "pre_release": null
+          },
+          "path": "./package.json",
+          "raw": ">= 0.10.0",
+          "source": "PackageJsonEnginesNode"
+        }
+      ]
+    }
   ]
 }
