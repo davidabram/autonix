@@ -2,7 +2,7 @@ pub use std::path::Path;
 use std::path::PathBuf;
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Language {
     Go,
     Rust,
@@ -10,7 +10,7 @@ pub enum Language {
     JavaScript,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub enum LanguageDetectionSource {
     //Go
     GoMod,
@@ -74,63 +74,131 @@ pub trait LanguageDetector {
     fn detect(&self, path: &Path) -> Option<LanguageDetection>;
 }
 
-pub struct GoDetector;
+struct DetectorConfig {
+    language: Language,
+    file_patterns: &'static [(&'static str, LanguageDetectionSource)],
+    extension_patterns: &'static [(&'static str, LanguageDetectionSource)],
+}
 
-impl LanguageDetector for GoDetector {
-    fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        let mut detected_from = Vec::new();
-        let mut has_go_file = false;
+fn detect_language(config: &DetectorConfig, path: &Path) -> Option<LanguageDetection> {
+    let mut detected_from = Vec::new();
+    let mut found_extensions = std::collections::HashSet::new();
 
-        for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
-            let entry_path = entry.path();
+    for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
+        let entry_path = entry.path();
 
-            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                match filename {
-                    "go.mod" => {
+        if entry.file_type().is_file() {
+            if let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
+                for (pattern, source) in config.file_patterns {
+                    if filename == *pattern {
                         detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::GoMod,
+                            source: source.clone(),
                             path: Some(entry_path.to_path_buf()),
                         });
+                        break;
                     }
-                    "go.work" => {
+                }
+            }
+
+            if let Some(ext) = entry_path.extension().and_then(|ext| ext.to_str()) {
+                for (pattern, source) in config.extension_patterns {
+                    if ext == *pattern && !found_extensions.contains(*pattern) {
+                        found_extensions.insert(*pattern);
                         detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::GoWork,
-                            path: Some(entry_path.to_path_buf()),
+                            source: source.clone(),
+                            path: None,
                         });
-                    }
-                    "go.sum" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::GoSum,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    ".go-version" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::GoVersion,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    _ => {
-                        if !has_go_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("go") {
-                            has_go_file = true;
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::GoFile,
-                                path: None,
-                            });
-                        }
+                        break;
                     }
                 }
             }
         }
+    }
 
-        if detected_from.is_empty() {
-            None
-        } else {
-            Some(LanguageDetection {
-                language: Language::Go,
-                detected_from,
-            })
-        }
+    if detected_from.is_empty() {
+        None
+    } else {
+        Some(LanguageDetection {
+            language: config.language.clone(),
+            detected_from,
+        })
+    }
+}
+
+const GO_CONFIG: DetectorConfig = DetectorConfig {
+    language: Language::Go,
+    file_patterns: &[
+        ("go.mod", LanguageDetectionSource::GoMod),
+        ("go.work", LanguageDetectionSource::GoWork),
+        ("go.sum", LanguageDetectionSource::GoSum),
+        (".go-version", LanguageDetectionSource::GoVersion),
+    ],
+    extension_patterns: &[
+        ("go", LanguageDetectionSource::GoFile),
+    ],
+};
+
+const RUST_CONFIG: DetectorConfig = DetectorConfig {
+    language: Language::Rust,
+    file_patterns: &[
+        ("Cargo.toml", LanguageDetectionSource::CargoToml),
+        ("Cargo.lock", LanguageDetectionSource::CargoLock),
+        ("rust-toolchain", LanguageDetectionSource::RustToolchain),
+        ("rust-toolchain.toml", LanguageDetectionSource::RustToolchainToml),
+    ],
+    extension_patterns: &[
+        ("rs", LanguageDetectionSource::RsFile),
+    ],
+};
+
+const PYTHON_CONFIG: DetectorConfig = DetectorConfig {
+    language: Language::Python,
+    file_patterns: &[
+        ("requirements.txt", LanguageDetectionSource::RequirementsTxt),
+        ("pyproject.toml", LanguageDetectionSource::PyprojectToml),
+        ("Pipfile", LanguageDetectionSource::Pipfile),
+        ("Pipfile.lock", LanguageDetectionSource::PipfileLock),
+        ("poetry.lock", LanguageDetectionSource::PoetryLock),
+        ("setup.py", LanguageDetectionSource::SetupPy),
+        ("setup.cfg", LanguageDetectionSource::SetupCfg),
+        ("environment.yml", LanguageDetectionSource::EnvironmentYml),
+    ],
+    extension_patterns: &[
+        ("py", LanguageDetectionSource::PyFile),
+    ],
+};
+
+const JAVASCRIPT_CONFIG: DetectorConfig = DetectorConfig {
+    language: Language::JavaScript,
+    file_patterns: &[
+        ("package.json", LanguageDetectionSource::PackageJson),
+        ("package-lock.json", LanguageDetectionSource::PackageLockJson),
+        ("yarn.lock", LanguageDetectionSource::YarnLock),
+        ("pnpm-lock.yaml", LanguageDetectionSource::PnpmLockYaml),
+        ("bun.lock", LanguageDetectionSource::BunLock),
+        ("bun.lockb", LanguageDetectionSource::BunLockb),
+        ("lock.json", LanguageDetectionSource::LockJson),
+        ("deno.lock", LanguageDetectionSource::DenoLock),
+        ("deno.json", LanguageDetectionSource::DenoJson),
+        ("deno.jsonc", LanguageDetectionSource::DenoJsonc),
+        ("tsconfig.json", LanguageDetectionSource::TsConfig),
+        ("jsconfig.json", LanguageDetectionSource::JsConfig),
+    ],
+    extension_patterns: &[
+        ("js", LanguageDetectionSource::JsFile),
+        ("mjs", LanguageDetectionSource::MjsFile),
+        ("cjs", LanguageDetectionSource::CjsFile),
+        ("ts", LanguageDetectionSource::TsFile),
+        ("jsx", LanguageDetectionSource::JsxFile),
+        ("tsx", LanguageDetectionSource::TsxFile),
+    ],
+};
+
+pub struct GoDetector;
+
+impl LanguageDetector for GoDetector {
+    fn detect(&self, path: &Path) -> Option<LanguageDetection> {
+        detect_language(&GO_CONFIG, path)
     }
 }
 
@@ -138,59 +206,7 @@ pub struct RustDetector;
 
 impl LanguageDetector for RustDetector {
     fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        let mut detected_from = Vec::new();
-        let mut has_rs_file = false;
-
-        for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
-            let entry_path = entry.path();
-
-            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                match filename {
-                    "Cargo.toml" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::CargoToml,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "Cargo.lock" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::CargoLock,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "rust-toolchain" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::RustToolchain,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "rust-toolchain.toml" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::RustToolchainToml,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    _ => {
-                        if !has_rs_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
-                            has_rs_file = true;
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::RsFile,
-                                path: None,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        if detected_from.is_empty() {
-            None
-        } else {
-            Some(LanguageDetection {
-                language: Language::Rust,
-                detected_from,
-            })
-        }
+        detect_language(&RUST_CONFIG, path)
     }
 }
 
@@ -198,83 +214,7 @@ pub struct PythonDetector;
 
 impl LanguageDetector for PythonDetector {
     fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        let mut detected_from = Vec::new();
-        let mut has_py_file = false;
-
-        for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
-            let entry_path = entry.path();
-
-            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                match filename {
-                    "requirements.txt" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::RequirementsTxt,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "pyproject.toml" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::PyprojectToml,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "Pipfile" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::Pipfile,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "Pipfile.lock" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::PipfileLock,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "poetry.lock" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::PoetryLock,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "setup.py" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::SetupPy,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "setup.cfg" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::SetupCfg,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "environment.yml" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::EnvironmentYml,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    _ => {
-                        if !has_py_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("py") {
-                            has_py_file = true;
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::PyFile,
-                                path: None,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        if detected_from.is_empty() {
-            None
-        } else {
-            Some(LanguageDetection {
-                language: Language::Python,
-                detected_from,
-            })
-        }
+        detect_language(&PYTHON_CONFIG, path)
     }
 }
 
@@ -282,149 +222,6 @@ pub struct JavaScriptDetector;
 
 impl LanguageDetector for JavaScriptDetector {
     fn detect(&self, path: &Path) -> Option<LanguageDetection> {
-        let mut detected_from = Vec::new();
-        let mut has_js_file = false;
-        let mut has_mjs_file = false;
-        let mut has_cjs_file = false;
-        let mut has_ts_file = false;
-        let mut has_jsx_file = false;
-        let mut has_tsx_file = false;
-
-        for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
-            let entry_path = entry.path();
-
-            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                match filename {
-                    "package.json" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::PackageJson,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "package-lock.json" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::PackageLockJson,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "yarn.lock" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::YarnLock,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "pnpm-lock.yaml" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::PnpmLockYaml,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "bun.lock" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::BunLock,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "bun.lockb" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::BunLockb,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "lock.json" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::LockJson,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "deno.lock" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::DenoLock,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "deno.json" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::DenoJson,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "deno.jsonc" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::DenoJsonc,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "tsconfig.json" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::TsConfig,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    "jsconfig.json" => {
-                        detected_from.push(DetectedSource {
-                            source: LanguageDetectionSource::JsConfig,
-                            path: Some(entry_path.to_path_buf()),
-                        });
-                    }
-                    _ => {
-                        match entry_path.extension().and_then(|ext| ext.to_str()) {
-                            Some("js") if !has_js_file => {
-                                has_js_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::JsFile,
-                                    path: None,
-                                });
-                            }
-                            Some("mjs") if !has_mjs_file => {
-                                has_mjs_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::MjsFile,
-                                    path: None,
-                                });
-                            }
-                            Some("cjs") if !has_cjs_file => {
-                                has_cjs_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::CjsFile,
-                                    path: None,
-                                });
-                            }
-                            Some("ts") if !has_ts_file => {
-                                has_ts_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::TsFile,
-                                    path: None,
-                                });
-                            }
-                            Some("jsx") if !has_jsx_file => {
-                                has_jsx_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::JsxFile,
-                                    path: None,
-                                });
-                            }
-                            Some("tsx") if !has_tsx_file => {
-                                has_tsx_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::TsxFile,
-                                    path: None,
-                                });
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        }
-
-        if detected_from.is_empty() {
-            None
-        } else {
-            Some(LanguageDetection {
-                language: Language::JavaScript,
-                detected_from,
-            })
-        }
+        detect_language(&JAVASCRIPT_CONFIG, path)
     }
 }
