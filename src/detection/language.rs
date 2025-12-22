@@ -45,6 +45,7 @@ pub enum LanguageDetectionSource {
     BunLock,
     BunLockb,
     DenoLock,
+    LockJson,
     DenoJson,
     DenoJsonc,
     TsConfig,
@@ -97,6 +98,7 @@ impl From<&LanguageDetectionSource> for Language {
             | LanguageDetectionSource::BunLock
             | LanguageDetectionSource::BunLockb
             | LanguageDetectionSource::DenoLock
+            | LanguageDetectionSource::LockJson
             | LanguageDetectionSource::DenoJson
             | LanguageDetectionSource::DenoJsonc
             | LanguageDetectionSource::TsConfig
@@ -193,6 +195,7 @@ impl TryFrom<PathBuf> for LanguageDetectionSignal {
             "bun.lock" => Ok(LanguageDetectionSource::BunLock),
             "bun.lockb" => Ok(LanguageDetectionSource::BunLockb),
             "deno.lock" => Ok(LanguageDetectionSource::DenoLock),
+            "lock.json" => Ok(LanguageDetectionSource::LockJson),
             "deno.json" => Ok(LanguageDetectionSource::DenoJson),
             "deno.jsonc" => Ok(LanguageDetectionSource::DenoJsonc),
             "tsconfig.json" => Ok(LanguageDetectionSource::TsConfig),
