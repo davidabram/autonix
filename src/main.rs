@@ -23,7 +23,7 @@ enum OutputFormat {
 
 fn main() {
     let args = Args::parse();
-    let engine = DetectionEngine::new();
+    let engine = DetectionEngine;
     let metadata = engine.detect(&args.path);
 
     match args.format {
@@ -41,5 +41,3 @@ fn main() {
         }
     }
 }
-
-

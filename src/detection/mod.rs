@@ -1,5 +1,9 @@
-pub use std::path::Path;
 use serde::Serialize;
+pub use std::path::Path;
+use std::{
+    collections::{HashMap, VecDeque},
+    path::PathBuf,
+};
 
 mod language;
 
@@ -7,36 +11,43 @@ pub use language::*;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectMetadata {
-    pub languages: Vec<LanguageDetection>,
+    languages: Vec<LanguageDetection>,
 }
 
-pub struct DetectionEngine {
-    language_detectors: Vec<Box<dyn LanguageDetector>>,
-}
-
+pub struct DetectionEngine;
 
 impl DetectionEngine {
-    pub fn new() -> Self {
-        let language_detectors: Vec<Box<dyn LanguageDetector>> = vec![
-            Box::new(language::GoDetector),
-            Box::new(language::RustDetector),
-            Box::new(language::PythonDetector),
-            Box::new(language::JavaScriptDetector),
-        ];
-
-        DetectionEngine { language_detectors }
-    }
-
-    pub fn  detect(&self, path: &Path) -> ProjectMetadata {
-        let mut languages = Vec::new();
-
-        for detector in &self.language_detectors {
-            if let Some(detection) = detector.detect(path) {
-                languages.push(detection);
-            }
-        }
+    pub fn detect(&self, path: &Path) -> ProjectMetadata {
+        let languages = DirectoryIterator(VecDeque::from([path.to_path_buf()]))
+            .filter_map(|path| LanguageDetectionSignal::try_from(path).ok())
+            .fold(
+                HashMap::<Language, Vec<LanguageDetectionSignal>>::new(),
+                |mut acc, signal| {
+                    let lang = (&signal).into();
+                    acc.entry(lang).or_default().push(signal);
+                    acc
+                },
+            )
+            .into_iter()
+            .map(|(language, sources)| LanguageDetection::new(language, sources))
+            .collect();
 
         ProjectMetadata { languages }
     }
 }
 
+struct DirectoryIterator(VecDeque<PathBuf>);
+
+impl Iterator for DirectoryIterator {
+    type Item = PathBuf;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop_front().map(|p| {
+            if p.is_dir() {
+                p.read_dir()
+                    .unwrap()
+                    .for_each(|p| self.0.push_back(p.unwrap().path()));
+            }
+            p
+        })
+    }
+}
