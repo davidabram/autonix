@@ -144,120 +144,141 @@ fn parse_version_or_expression(raw: &str) -> Option<SemanticVersion> {
         .max_by_key(|v| (v.major, v.minor, v.patch))
 }
 
-fn parse_go_mod(path: &PathBuf) -> Option<VersionInfo> {
-    let content = fs::read_to_string(path).ok()?;
+fn parse_go_mod(path: &PathBuf) -> Vec<VersionInfo> {
+    let Ok(content) = fs::read_to_string(path) else {
+        return vec![];
+    };
 
     for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with("go ") {
             let version = trimmed.trim_start_matches("go ").trim();
-            return Some(VersionInfo {
+            return vec![VersionInfo {
                 raw: version.to_string(),
                 parsed: parse_semantic_version(version),
                 source: VersionSource::GoModDirective,
                 path: path.clone(),
-            });
+            }];
         }
     }
-    None
+    vec![]
 }
 
-fn parse_simple_version_file(path: &PathBuf, source: VersionSource) -> Option<VersionInfo> {
-    let content = fs::read_to_string(path).ok()?;
+fn parse_simple_version_file(path: &PathBuf, source: VersionSource) -> Vec<VersionInfo> {
+    let Ok(content) = fs::read_to_string(path) else {
+        return vec![];
+    };
     let version = content.trim();
 
     if version.is_empty() {
-        return None;
+        return vec![];
     }
 
-    Some(VersionInfo {
+    vec![VersionInfo {
         raw: version.to_string(),
         parsed: parse_semantic_version(version),
         source,
         path: path.clone(),
-    })
+    }]
 }
 
-fn parse_go_version_file(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_go_version_file(path: &PathBuf) -> Vec<VersionInfo> {
     parse_simple_version_file(path, VersionSource::GoVersionFile)
 }
 
-fn parse_rust_toolchain(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_rust_toolchain(path: &PathBuf) -> Vec<VersionInfo> {
     parse_simple_version_file(path, VersionSource::RustToolchainFile)
 }
 
-fn parse_toml_field(path: &PathBuf, field_path: &[&str], source: VersionSource) -> Option<VersionInfo> {
-    let content = fs::read_to_string(path).ok()?;
-    let parsed: toml::Value = toml::from_str(&content).ok()?;
+fn parse_toml_field(path: &PathBuf, field_path: &[&str], source: VersionSource) -> Vec<VersionInfo> {
+    let Ok(content) = fs::read_to_string(path) else {
+        return vec![];
+    };
+    let Ok(parsed) = toml::from_str::<toml::Value>(&content) else {
+        return vec![];
+    };
 
     let mut current = &parsed;
     for field in field_path {
-        current = current.get(field)?;
+        let Some(next) = current.get(field) else {
+            return vec![];
+        };
+        current = next;
     }
 
-    let version_str = current.as_str()?;
+    let Some(version_str) = current.as_str() else {
+        return vec![];
+    };
 
-    Some(VersionInfo {
+    vec![VersionInfo {
         raw: version_str.to_string(),
         parsed: parse_semantic_version(version_str),
         source,
         path: path.clone(),
-    })
+    }]
 }
 
-fn parse_rust_toolchain_toml(path: &PathBuf) -> Option<VersionInfo> {
-    let content = fs::read_to_string(path).ok()?;
-    let parsed: toml::Value = toml::from_str(&content).ok()?;
+fn parse_rust_toolchain_toml(path: &PathBuf) -> Vec<VersionInfo> {
+    let Ok(content) = fs::read_to_string(path) else {
+        return vec![];
+    };
+    let Ok(parsed) = toml::from_str::<toml::Value>(&content) else {
+        return vec![];
+    };
 
-    let channel = parsed.get("toolchain")
+    let Some(channel) = parsed.get("toolchain")
         .and_then(|t| t.get("channel"))
         .or_else(|| parsed.get("channel"))
-        .and_then(|c| c.as_str())?;
+        .and_then(|c| c.as_str()) else {
+        return vec![];
+    };
 
-    Some(VersionInfo {
+    vec![VersionInfo {
         raw: channel.to_string(),
         parsed: parse_semantic_version(channel),
         source: VersionSource::RustToolchainToml,
         path: path.clone(),
-    })
+    }]
 }
 
-fn parse_cargo_toml_rust_version(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_cargo_toml_rust_version(path: &PathBuf) -> Vec<VersionInfo> {
     parse_toml_field(path, &["package", "rust-version"], VersionSource::CargoTomlRustVersion)
 }
 
-fn parse_pyproject_toml(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_pyproject_toml(path: &PathBuf) -> Vec<VersionInfo> {
     parse_toml_field(path, &["project", "requires-python"], VersionSource::PyprojectRequiresPython)
 }
 
-fn parse_python_version_file(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_python_version_file(path: &PathBuf) -> Vec<VersionInfo> {
     parse_simple_version_file(path, VersionSource::PythonVersionFile)
 }
 
-fn parse_pipfile(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_pipfile(path: &PathBuf) -> Vec<VersionInfo> {
     parse_toml_field(path, &["requires", "python_version"], VersionSource::PipfilePythonVersion)
 }
 
-fn parse_setup_py(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_setup_py(path: &PathBuf) -> Vec<VersionInfo> {
     static PYTHON_REQUIRES_RE: OnceLock<regex::Regex> = OnceLock::new();
-    
-    let content = fs::read_to_string(path).ok()?;
+
+    let Ok(content) = fs::read_to_string(path) else {
+        return vec![];
+    };
     let re = PYTHON_REQUIRES_RE.get_or_init(|| {
         regex::Regex::new(r#"python_requires\s*=\s*["']([^"']+)["']"#)
             .expect("invalid regex pattern")
     });
 
-    if let Some(captures) = re.captures(&content) {
-        let version = captures.get(1)?.as_str();
-        return Some(VersionInfo {
+    if let Some(captures) = re.captures(&content) && let Some(version_match) = captures.get(1) {
+        let version = version_match.as_str();
+        return vec![VersionInfo {
             raw: version.to_string(),
             parsed: parse_semantic_version(version),
             source: VersionSource::SetupPyPythonRequires,
             path: path.clone(),
-        });
+        }];
     }
 
-    None
+    vec![]
 }
 
 fn parse_package_json(path: &PathBuf) -> Vec<VersionInfo> {
@@ -298,26 +319,22 @@ fn parse_package_json(path: &PathBuf) -> Vec<VersionInfo> {
     versions
 }
 
-fn parse_nvmrc(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_nvmrc(path: &PathBuf) -> Vec<VersionInfo> {
     parse_simple_version_file(path, VersionSource::NvmrcFile)
 }
 
-fn parse_node_version_file(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_node_version_file(path: &PathBuf) -> Vec<VersionInfo> {
     parse_simple_version_file(path, VersionSource::NodeVersionFile)
 }
 
-fn parse_bun_version_file(path: &PathBuf) -> Option<VersionInfo> {
+fn parse_bun_version_file(path: &PathBuf) -> Vec<VersionInfo> {
     parse_simple_version_file(path, VersionSource::BunVersionFile)
-}
-
-fn single_to_vec<T>(item: Option<T>) -> Option<Vec<T>> {
-    item.map(|v| vec![v])
 }
 
 fn detect_version_for_language(
     lang_detection: &LanguageDetection,
     expected_language: &Language,
-    parser: impl Fn(&LanguageDetectionSource, &PathBuf) -> Option<Vec<VersionInfo>>,
+    parser: impl Fn(&LanguageDetectionSource, &PathBuf) -> Vec<VersionInfo>,
 ) -> Option<VersionDetection> {
     if std::mem::discriminant(&lang_detection.language) != std::mem::discriminant(expected_language) {
         return None;
@@ -326,9 +343,8 @@ fn detect_version_for_language(
     let mut versions = Vec::new();
 
     for detected_source in &lang_detection.detected_from {
-        if let Some(path) = &detected_source.path &&
-           let Some(mut version_infos) = parser(&detected_source.source, path) {
-            versions.append(&mut version_infos);
+        if let Some(path) = &detected_source.path {
+            versions.extend(parser(&detected_source.source, path));
         }
     }
 
@@ -348,9 +364,9 @@ impl VersionDetector for GoVersionDetector {
     fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
         detect_version_for_language(lang_detection, &Language::Go, |source, path| {
             match source {
-                LanguageDetectionSource::GoMod => single_to_vec(parse_go_mod(path)),
-                LanguageDetectionSource::GoVersionFile => single_to_vec(parse_go_version_file(path)),
-                _ => None,
+                LanguageDetectionSource::GoMod => parse_go_mod(path),
+                LanguageDetectionSource::GoVersionFile => parse_go_version_file(path),
+                _ => vec![],
             }
         })
     }
@@ -362,10 +378,10 @@ impl VersionDetector for RustVersionDetector {
     fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
         detect_version_for_language(lang_detection, &Language::Rust, |source, path| {
             match source {
-                LanguageDetectionSource::CargoToml => single_to_vec(parse_cargo_toml_rust_version(path)),
-                LanguageDetectionSource::RustToolchain => single_to_vec(parse_rust_toolchain(path)),
-                LanguageDetectionSource::RustToolchainToml => single_to_vec(parse_rust_toolchain_toml(path)),
-                _ => None,
+                LanguageDetectionSource::CargoToml => parse_cargo_toml_rust_version(path),
+                LanguageDetectionSource::RustToolchain => parse_rust_toolchain(path),
+                LanguageDetectionSource::RustToolchainToml => parse_rust_toolchain_toml(path),
+                _ => vec![],
             }
         })
     }
@@ -377,11 +393,11 @@ impl VersionDetector for PythonVersionDetector {
     fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
         detect_version_for_language(lang_detection, &Language::Python, |source, path| {
             match source {
-                LanguageDetectionSource::PyprojectToml => single_to_vec(parse_pyproject_toml(path)),
-                LanguageDetectionSource::PythonVersionFile => single_to_vec(parse_python_version_file(path)),
-                LanguageDetectionSource::Pipfile => single_to_vec(parse_pipfile(path)),
-                LanguageDetectionSource::SetupPy => single_to_vec(parse_setup_py(path)),
-                _ => None,
+                LanguageDetectionSource::PyprojectToml => parse_pyproject_toml(path),
+                LanguageDetectionSource::PythonVersionFile => parse_python_version_file(path),
+                LanguageDetectionSource::Pipfile => parse_pipfile(path),
+                LanguageDetectionSource::SetupPy => parse_setup_py(path),
+                _ => vec![],
             }
         })
     }
@@ -393,11 +409,11 @@ impl VersionDetector for JavaScriptVersionDetector {
     fn detect(&self, lang_detection: &LanguageDetection) -> Option<VersionDetection> {
         detect_version_for_language(lang_detection, &Language::JavaScript, |source, path| {
             match source {
-                LanguageDetectionSource::PackageJson => Some(parse_package_json(path)),
-                LanguageDetectionSource::NvmrcFile => single_to_vec(parse_nvmrc(path)),
-                LanguageDetectionSource::NodeVersionFile => single_to_vec(parse_node_version_file(path)),
-                LanguageDetectionSource::BunVersionFile => single_to_vec(parse_bun_version_file(path)),
-                _ => None,
+                LanguageDetectionSource::PackageJson => parse_package_json(path),
+                LanguageDetectionSource::NvmrcFile => parse_nvmrc(path),
+                LanguageDetectionSource::NodeVersionFile => parse_node_version_file(path),
+                LanguageDetectionSource::BunVersionFile => parse_bun_version_file(path),
+                _ => vec![],
             }
         })
     }
