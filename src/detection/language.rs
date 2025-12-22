@@ -84,41 +84,39 @@ impl LanguageDetector for GoDetector {
         for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
             let entry_path = entry.path();
 
-            if entry.file_type().is_file() {
-                if let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                    match filename {
-                        "go.mod" => {
+            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
+                match filename {
+                    "go.mod" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::GoMod,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "go.work" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::GoWork,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "go.sum" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::GoSum,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    ".go-version" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::GoVersion,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    _ => {
+                        if !has_go_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("go") {
+                            has_go_file = true;
                             detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::GoMod,
-                                path: Some(entry_path.to_path_buf()),
+                                source: LanguageDetectionSource::GoFile,
+                                path: None,
                             });
-                        }
-                        "go.work" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::GoWork,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "go.sum" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::GoSum,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        ".go-version" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::GoVersion,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        _ => {
-                            if !has_go_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("go") {
-                                has_go_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::GoFile,
-                                    path: None,
-                                });
-                            }
                         }
                     }
                 }
@@ -146,41 +144,39 @@ impl LanguageDetector for RustDetector {
         for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
             let entry_path = entry.path();
 
-            if entry.file_type().is_file() {
-                if let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                    match filename {
-                        "Cargo.toml" => {
+            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
+                match filename {
+                    "Cargo.toml" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::CargoToml,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "Cargo.lock" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::CargoLock,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "rust-toolchain" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::RustToolchain,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "rust-toolchain.toml" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::RustToolchainToml,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    _ => {
+                        if !has_rs_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+                            has_rs_file = true;
                             detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::CargoToml,
-                                path: Some(entry_path.to_path_buf()),
+                                source: LanguageDetectionSource::RsFile,
+                                path: None,
                             });
-                        }
-                        "Cargo.lock" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::CargoLock,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "rust-toolchain" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::RustToolchain,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "rust-toolchain.toml" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::RustToolchainToml,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        _ => {
-                            if !has_rs_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
-                                has_rs_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::RsFile,
-                                    path: None,
-                                });
-                            }
                         }
                     }
                 }
@@ -208,65 +204,63 @@ impl LanguageDetector for PythonDetector {
         for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
             let entry_path = entry.path();
 
-            if entry.file_type().is_file() {
-                if let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                    match filename {
-                        "requirements.txt" => {
+            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
+                match filename {
+                    "requirements.txt" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::RequirementsTxt,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "pyproject.toml" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::PyprojectToml,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "Pipfile" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::Pipfile,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "Pipfile.lock" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::PipfileLock,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "poetry.lock" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::PoetryLock,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "setup.py" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::SetupPy,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "setup.cfg" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::SetupCfg,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "environment.yml" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::EnvironmentYml,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    _ => {
+                        if !has_py_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("py") {
+                            has_py_file = true;
                             detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::RequirementsTxt,
-                                path: Some(entry_path.to_path_buf()),
+                                source: LanguageDetectionSource::PyFile,
+                                path: None,
                             });
-                        }
-                        "pyproject.toml" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::PyprojectToml,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "Pipfile" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::Pipfile,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "Pipfile.lock" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::PipfileLock,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "poetry.lock" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::PoetryLock,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "setup.py" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::SetupPy,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "setup.cfg" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::SetupCfg,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "environment.yml" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::EnvironmentYml,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        _ => {
-                            if !has_py_file && entry_path.extension().and_then(|ext| ext.to_str()) == Some("py") {
-                                has_py_file = true;
-                                detected_from.push(DetectedSource {
-                                    source: LanguageDetectionSource::PyFile,
-                                    path: None,
-                                });
-                            }
                         }
                     }
                 }
@@ -299,127 +293,125 @@ impl LanguageDetector for JavaScriptDetector {
         for entry in walkdir::WalkDir::new(path).into_iter().filter_map(Result::ok) {
             let entry_path = entry.path();
 
-            if entry.file_type().is_file() {
-                if let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
-                    match filename {
-                        "package.json" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::PackageJson,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "package-lock.json" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::PackageLockJson,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "yarn.lock" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::YarnLock,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "pnpm-lock.yaml" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::PnpmLockYaml,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "bun.lock" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::BunLock,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "bun.lockb" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::BunLockb,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "lock.json" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::LockJson,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "deno.lock" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::DenoLock,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "deno.json" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::DenoJson,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "deno.jsonc" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::DenoJsonc,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "tsconfig.json" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::TsConfig,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        "jsconfig.json" => {
-                            detected_from.push(DetectedSource {
-                                source: LanguageDetectionSource::JsConfig,
-                                path: Some(entry_path.to_path_buf()),
-                            });
-                        }
-                        _ => {
-                            match entry_path.extension().and_then(|ext| ext.to_str()) {
-                                Some("js") if !has_js_file => {
-                                    has_js_file = true;
-                                    detected_from.push(DetectedSource {
-                                        source: LanguageDetectionSource::JsFile,
-                                        path: None,
-                                    });
-                                }
-                                Some("mjs") if !has_mjs_file => {
-                                    has_mjs_file = true;
-                                    detected_from.push(DetectedSource {
-                                        source: LanguageDetectionSource::MjsFile,
-                                        path: None,
-                                    });
-                                }
-                                Some("cjs") if !has_cjs_file => {
-                                    has_cjs_file = true;
-                                    detected_from.push(DetectedSource {
-                                        source: LanguageDetectionSource::CjsFile,
-                                        path: None,
-                                    });
-                                }
-                                Some("ts") if !has_ts_file => {
-                                    has_ts_file = true;
-                                    detected_from.push(DetectedSource {
-                                        source: LanguageDetectionSource::TsFile,
-                                        path: None,
-                                    });
-                                }
-                                Some("jsx") if !has_jsx_file => {
-                                    has_jsx_file = true;
-                                    detected_from.push(DetectedSource {
-                                        source: LanguageDetectionSource::JsxFile,
-                                        path: None,
-                                    });
-                                }
-                                Some("tsx") if !has_tsx_file => {
-                                    has_tsx_file = true;
-                                    detected_from.push(DetectedSource {
-                                        source: LanguageDetectionSource::TsxFile,
-                                        path: None,
-                                    });
-                                }
-                                _ => {}
+            if entry.file_type().is_file() && let Some(filename) = entry_path.file_name().and_then(|n| n.to_str()) {
+                match filename {
+                    "package.json" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::PackageJson,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "package-lock.json" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::PackageLockJson,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "yarn.lock" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::YarnLock,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "pnpm-lock.yaml" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::PnpmLockYaml,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "bun.lock" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::BunLock,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "bun.lockb" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::BunLockb,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "lock.json" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::LockJson,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "deno.lock" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::DenoLock,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "deno.json" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::DenoJson,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "deno.jsonc" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::DenoJsonc,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "tsconfig.json" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::TsConfig,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    "jsconfig.json" => {
+                        detected_from.push(DetectedSource {
+                            source: LanguageDetectionSource::JsConfig,
+                            path: Some(entry_path.to_path_buf()),
+                        });
+                    }
+                    _ => {
+                        match entry_path.extension().and_then(|ext| ext.to_str()) {
+                            Some("js") if !has_js_file => {
+                                has_js_file = true;
+                                detected_from.push(DetectedSource {
+                                    source: LanguageDetectionSource::JsFile,
+                                    path: None,
+                                });
                             }
+                            Some("mjs") if !has_mjs_file => {
+                                has_mjs_file = true;
+                                detected_from.push(DetectedSource {
+                                    source: LanguageDetectionSource::MjsFile,
+                                    path: None,
+                                });
+                            }
+                            Some("cjs") if !has_cjs_file => {
+                                has_cjs_file = true;
+                                detected_from.push(DetectedSource {
+                                    source: LanguageDetectionSource::CjsFile,
+                                    path: None,
+                                });
+                            }
+                            Some("ts") if !has_ts_file => {
+                                has_ts_file = true;
+                                detected_from.push(DetectedSource {
+                                    source: LanguageDetectionSource::TsFile,
+                                    path: None,
+                                });
+                            }
+                            Some("jsx") if !has_jsx_file => {
+                                has_jsx_file = true;
+                                detected_from.push(DetectedSource {
+                                    source: LanguageDetectionSource::JsxFile,
+                                    path: None,
+                                });
+                            }
+                            Some("tsx") if !has_tsx_file => {
+                                has_tsx_file = true;
+                                detected_from.push(DetectedSource {
+                                    source: LanguageDetectionSource::TsxFile,
+                                    path: None,
+                                });
+                            }
+                            _ => {}
                         }
                     }
                 }
