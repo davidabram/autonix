@@ -3,14 +3,118 @@
     {
       "language": "JavaScript",
       "detected_from": [
-        "PackageJson",
-        "YarnLock",
-        "BunLockb",
-        "TsConfig",
-        "JsFile",
-        "MjsFile",
-        "TsFile",
-        "TsxFile"
+        {
+          "source": "TsFile",
+          "path": null
+        },
+        {
+          "source": "TsxFile",
+          "path": null
+        },
+        {
+          "source": "BunLockb",
+          "path": "./bun.lockb"
+        },
+        {
+          "source": "PackageJson",
+          "path": "./package.json"
+        },
+        {
+          "source": "TsConfig",
+          "path": "./perf-measures/tsconfig.json"
+        },
+        {
+          "source": "MjsFile",
+          "path": null
+        },
+        {
+          "source": "JsFile",
+          "path": null
+        },
+        {
+          "source": "PackageJson",
+          "path": "./benchmarks/utils/package.json"
+        },
+        {
+          "source": "PackageJson",
+          "path": "./benchmarks/routers/package.json"
+        },
+        {
+          "source": "YarnLock",
+          "path": "./benchmarks/routers/yarn.lock"
+        },
+        {
+          "source": "TsConfig",
+          "path": "./benchmarks/routers/tsconfig.json"
+        },
+        {
+          "source": "DenoJson",
+          "path": "./benchmarks/routers-deno/deno.json"
+        },
+        {
+          "source": "DenoLock",
+          "path": "./benchmarks/routers-deno/deno.lock"
+        },
+        {
+          "source": "BunLockb",
+          "path": "./benchmarks/query-param/bun.lockb"
+        },
+        {
+          "source": "PackageLockJson",
+          "path": "./benchmarks/query-param/package-lock.json"
+        },
+        {
+          "source": "PackageJson",
+          "path": "./benchmarks/query-param/package.json"
+        },
+        {
+          "source": "TsConfig",
+          "path": "./benchmarks/jsx/src/react-jsx/tsconfig.json"
+        },
+        {
+          "source": "PackageJson",
+          "path": "./benchmarks/jsx/package.json"
+        },
+        {
+          "source": "YarnLock",
+          "path": "./benchmarks/jsx/yarn.lock"
+        },
+        {
+          "source": "TsConfig",
+          "path": "./benchmarks/jsx/tsconfig.json"
+        },
+        {
+          "source": "PackageJson",
+          "path": "./benchmarks/handle-event/package.json"
+        },
+        {
+          "source": "YarnLock",
+          "path": "./benchmarks/handle-event/yarn.lock"
+        },
+        {
+          "source": "PackageJson",
+          "path": "./benchmarks/webapp/package.json"
+        },
+        {
+          "source": "YarnLock",
+          "path": "./yarn.lock"
+        },
+        {
+          "source": "DenoJson",
+          "path": "./runtime-tests/deno/deno.json"
+        },
+        {
+          "source": "DenoLock",
+          "path": "./runtime-tests/deno/deno.lock"
+        },
+        {
+          "source": "TsConfig",
+          "path": "./runtime-tests/tsconfig.json"
+        },
+        {
+          "source": "TsConfig",
+          "path": "./tsconfig.json"
+        }
       ]
     }
   ]

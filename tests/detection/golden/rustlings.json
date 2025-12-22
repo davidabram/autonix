@@ -3,9 +3,30 @@
     {
       "language": "Rust",
       "detected_from": [
-        "CargoToml",
-        "CargoLock",
-        "RsFile"
+        {
+          "source": "RsFile",
+          "path": null
+        },
+        {
+          "source": "CargoToml",
+          "path": "./tests/test_exercises/dev/Cargo.toml"
+        },
+        {
+          "source": "CargoToml",
+          "path": "./dev/Cargo.toml"
+        },
+        {
+          "source": "CargoToml",
+          "path": "./rustlings-macros/Cargo.toml"
+        },
+        {
+          "source": "CargoToml",
+          "path": "./Cargo.toml"
+        },
+        {
+          "source": "CargoLock",
+          "path": "./Cargo.lock"
+        }
       ]
     }
   ]

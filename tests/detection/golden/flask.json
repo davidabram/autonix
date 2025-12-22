@@ -3,8 +3,30 @@
     {
       "language": "Python",
       "detected_from": [
-        "PyprojectToml",
-        "PyFile"
+        {
+          "source": "PyFile",
+          "path": null
+        },
+        {
+          "source": "PyprojectToml",
+          "path": "./pyproject.toml"
+        },
+        {
+          "source": "PyprojectToml",
+          "path": "./examples/celery/pyproject.toml"
+        },
+        {
+          "source": "RequirementsTxt",
+          "path": "./examples/celery/requirements.txt"
+        },
+        {
+          "source": "PyprojectToml",
+          "path": "./examples/javascript/pyproject.toml"
+        },
+        {
+          "source": "PyprojectToml",
+          "path": "./examples/tutorial/pyproject.toml"
+        }
       ]
     }
   ]

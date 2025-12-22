@@ -3,18 +3,68 @@
     {
       "language": "Go",
       "detected_from": [
-        "GoMod",
-        "GoSum",
-        "GoFile"
+        {
+          "source": "GoFile",
+          "path": null
+        },
+        {
+          "source": "GoSum",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.sum"
+        },
+        {
+          "source": "GoMod",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod"
+        },
+        {
+          "source": "GoSum",
+          "path": "./go.sum"
+        },
+        {
+          "source": "GoMod",
+          "path": "./go.mod"
+        }
+      ]
+    },
+    {
+      "language": "Python",
+      "detected_from": [
+        {
+          "source": "RequirementsTxt",
+          "path": "./docs/requirements.txt"
+        }
       ]
     },
     {
       "language": "JavaScript",
       "detected_from": [
-        "JsFile",
-        "MjsFile",
-        "CjsFile",
-        "TsFile"
+        {
+          "source": "JsFile",
+          "path": null
+        },
+        {
+          "source": "CjsFile",
+          "path": null
+        },
+        {
+          "source": "JsConfig",
+          "path": "./webui/jsconfig.json"
+        },
+        {
+          "source": "TsFile",
+          "path": null
+        },
+        {
+          "source": "PackageJson",
+          "path": "./webui/package.json"
+        },
+        {
+          "source": "MjsFile",
+          "path": null
+        },
+        {
+          "source": "YarnLock",
+          "path": "./webui/yarn.lock"
+        }
       ]
     }
   ]
