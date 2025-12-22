@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::fs;
 use std::sync::OnceLock;
-use super::{Language, LanguageDetection, LanguageDetectionSource};
+use super::{Language, LanguageDetection, LanguageDetectionSource, LanguageDetectionSignal};
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum VersionSource {
@@ -342,9 +342,14 @@ fn detect_version_for_language(
 
     let mut versions = Vec::new();
 
-    for detected_source in &lang_detection.detected_from {
-        if let Some(path) = &detected_source.path {
-            versions.extend(parser(&detected_source.source, path));
+    for signal in &lang_detection.sources {
+        match signal {
+            LanguageDetectionSignal::Strong { path, source } => {
+                versions.extend(parser(source, path));
+            }
+            LanguageDetectionSignal::Weak(_) => {
+                // Weak signals don't have paths, skip them
+            }
         }
     }
 
