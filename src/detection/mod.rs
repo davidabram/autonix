@@ -42,7 +42,7 @@ impl DetectionEngine {
 
         let versions = languages
             .iter()
-            .filter_map(VersionDetection::from_language_detection)
+            .filter_map(|lang| VersionDetection::try_from(lang).ok())
             .collect();
 
         ProjectMetadata {
