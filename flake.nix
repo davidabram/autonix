@@ -28,13 +28,57 @@
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
         };
-      in
-      {
-        packages.default = autonix;
 
-        checks = import ./tests/detection/check-repos.nix {
+        unitTests = pkgs.rustPlatform.buildRustPackage {
+          pname = "autonix-tests";
+          version = "0.1.0";
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+          
+          buildPhase = ''
+            echo "Running unit tests..."
+            cargo test --lib --release
+          '';
+          
+          installPhase = ''
+            mkdir -p $out
+            echo "All tests passed" > $out/test-results.txt
+          '';
+          
+          doCheck = false;
+          meta.description = "Unit tests for autonix version detection";
+        };
+
+        goldenTests = import ./tests/detection/check-repos.nix {
           inherit pkgs;
           cli = autonix;
+        };
+      in
+      {
+        packages = {
+          default = autonix;
+          autonix = autonix;
+        };
+
+        checks = goldenTests // {
+          unit-tests = unitTests;
+        };
+
+        apps = {
+          default = {
+            type = "app";
+            program = "${autonix}/bin/autonix";
+          };
+          test = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "run-tests" ''
+              set -e
+              echo "Running unit tests..."
+              ${pkgs.cargo}/bin/cargo test --lib
+              echo ""
+              echo "All unit tests passed!"
+            '');
+          };
         };
 
         devShells.default = pkgs.mkShell {

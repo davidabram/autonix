@@ -1,7 +1,5 @@
-mod detection;
-
+use autonix::*;
 use clap::Parser;
-use detection::*;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
