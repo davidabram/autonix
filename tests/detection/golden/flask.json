@@ -5,15 +5,6 @@
       "sources": [
         {
           "Strong": {
-            "path": "./pyproject.toml",
-            "source": "PyprojectToml"
-          }
-        },
-        {
-          "Weak": "PyFile"
-        },
-        {
-          "Strong": {
             "path": "./examples/celery/pyproject.toml",
             "source": "PyprojectToml"
           }
@@ -35,6 +26,15 @@
             "path": "./examples/tutorial/pyproject.toml",
             "source": "PyprojectToml"
           }
+        },
+        {
+          "Strong": {
+            "path": "./pyproject.toml",
+            "source": "PyprojectToml"
+          }
+        },
+        {
+          "Weak": "PyFile"
         }
       ]
     }
@@ -44,17 +44,17 @@
       "language": "Python",
       "versions": [
         {
-          "raw": ">=3.9",
           "parsed": {
+            "build": null,
+            "constraint": "GreaterOrEqual",
             "major": 3,
             "minor": 9,
             "patch": null,
-            "pre_release": null,
-            "build": null,
-            "constraint": "GreaterOrEqual"
+            "pre_release": null
           },
-          "source": "PyprojectRequiresPython",
-          "path": "./pyproject.toml"
+          "path": "./pyproject.toml",
+          "raw": ">=3.9",
+          "source": "PyprojectRequiresPython"
         }
       ]
     }

@@ -5,16 +5,19 @@
       "sources": [
         {
           "Strong": {
+            "path": "./go.mod",
+            "source": "GoMod"
+          }
+        },
+        {
+          "Strong": {
             "path": "./go.sum",
             "source": "GoSum"
           }
         },
         {
-          "Weak": "GoFile"
-        },
-        {
           "Strong": {
-            "path": "./go.mod",
+            "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
             "source": "GoMod"
           }
         },
@@ -25,10 +28,42 @@
           }
         },
         {
+          "Weak": "GoFile"
+        }
+      ]
+    },
+    {
+      "language": "JavaScript",
+      "sources": [
+        {
           "Strong": {
-            "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
-            "source": "GoMod"
+            "path": "./webui/jsconfig.json",
+            "source": "JsConfig"
           }
+        },
+        {
+          "Strong": {
+            "path": "./webui/package.json",
+            "source": "PackageJson"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./webui/yarn.lock",
+            "source": "YarnLock"
+          }
+        },
+        {
+          "Weak": "CjsFile"
+        },
+        {
+          "Weak": "JsFile"
+        },
+        {
+          "Weak": "MjsFile"
+        },
+        {
+          "Weak": "TsFile"
         }
       ]
     },
@@ -42,41 +77,6 @@
           }
         }
       ]
-    },
-    {
-      "language": "JavaScript",
-      "sources": [
-        {
-          "Weak": "CjsFile"
-        },
-        {
-          "Strong": {
-            "path": "./webui/jsconfig.json",
-            "source": "JsConfig"
-          }
-        },
-        {
-          "Weak": "JsFile"
-        },
-        {
-          "Strong": {
-            "path": "./webui/package.json",
-            "source": "PackageJson"
-          }
-        },
-        {
-          "Weak": "MjsFile"
-        },
-        {
-          "Strong": {
-            "path": "./webui/yarn.lock",
-            "source": "YarnLock"
-          }
-        },
-        {
-          "Weak": "TsFile"
-        }
-      ]
     }
   ],
   "versions": [
@@ -84,30 +84,30 @@
       "language": "Go",
       "versions": [
         {
-          "raw": "1.23.0",
           "parsed": {
+            "build": null,
+            "constraint": "Exact",
             "major": 1,
             "minor": 23,
             "patch": 0,
-            "pre_release": null,
-            "build": null,
-            "constraint": "Exact"
+            "pre_release": null
           },
-          "source": "GoModDirective",
-          "path": "./go.mod"
+          "path": "./go.mod",
+          "raw": "1.23.0",
+          "source": "GoModDirective"
         },
         {
-          "raw": "1.23.0",
           "parsed": {
+            "build": null,
+            "constraint": "Exact",
             "major": 1,
             "minor": 23,
             "patch": 0,
-            "pre_release": null,
-            "build": null,
-            "constraint": "Exact"
+            "pre_release": null
           },
-          "source": "GoModDirective",
-          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod"
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+          "raw": "1.23.0",
+          "source": "GoModDirective"
         }
       ]
     },
@@ -115,17 +115,17 @@
       "language": "JavaScript",
       "versions": [
         {
-          "raw": "^22 || ^20 || ^18 || ^16",
           "parsed": {
+            "build": null,
+            "constraint": "Caret",
             "major": 22,
             "minor": null,
             "patch": null,
-            "pre_release": null,
-            "build": null,
-            "constraint": "Caret"
+            "pre_release": null
           },
-          "source": "PackageJsonEnginesNode",
-          "path": "./webui/package.json"
+          "path": "./webui/package.json",
+          "raw": "^22 || ^20 || ^18 || ^16",
+          "source": "PackageJsonEnginesNode"
         }
       ]
     }

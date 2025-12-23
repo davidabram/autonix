@@ -5,18 +5,15 @@
       "sources": [
         {
           "Strong": {
-            "path": "./Cargo.toml",
-            "source": "CargoToml"
-          }
-        },
-        {
-          "Strong": {
             "path": "./Cargo.lock",
             "source": "CargoLock"
           }
         },
         {
-          "Weak": "RsFile"
+          "Strong": {
+            "path": "./Cargo.toml",
+            "source": "CargoToml"
+          }
         },
         {
           "Strong": {
@@ -35,6 +32,9 @@
             "path": "./tests/test_exercises/dev/Cargo.toml",
             "source": "CargoToml"
           }
+        },
+        {
+          "Weak": "RsFile"
         }
       ]
     }

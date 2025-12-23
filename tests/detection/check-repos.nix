@@ -43,12 +43,44 @@ let
       fi
 
       jq --sort-keys '
-        .languages |= sort_by(.language) |
-        .versions |= sort_by(.language)
+        .languages |= (
+          sort_by(.language) |
+          map(.sources |= (
+            map(
+              if has("Strong") then
+                {Strong: .Strong, _sort_key: ("0_" + .Strong.path)}
+              else
+                {Weak: .Weak, _sort_key: ("1_" + .Weak)}
+              end
+            ) |
+            sort_by(._sort_key) |
+            map(del(._sort_key))
+          ))
+        ) |
+        .versions |= (
+          sort_by(.language) |
+          map(.versions |= sort_by(.path))
+        )
       ' "$TMPDIR/actual.json" > "$TMPDIR/actual-normalized.json"
       jq --sort-keys '
-        .languages |= sort_by(.language) |
-        .versions |= sort_by(.language)
+        .languages |= (
+          sort_by(.language) |
+          map(.sources |= (
+            map(
+              if has("Strong") then
+                {Strong: .Strong, _sort_key: ("0_" + .Strong.path)}
+              else
+                {Weak: .Weak, _sort_key: ("1_" + .Weak)}
+              end
+            ) |
+            sort_by(._sort_key) |
+            map(del(._sort_key))
+          ))
+        ) |
+        .versions |= (
+          sort_by(.language) |
+          map(.versions |= sort_by(.path))
+        )
       ' ${goldenFile} > "$TMPDIR/expected-normalized.json"
 
       if ! diff -u "$TMPDIR/expected-normalized.json" "$TMPDIR/actual-normalized.json" > "$TMPDIR/diff.txt"; then

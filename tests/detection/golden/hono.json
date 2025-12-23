@@ -5,83 +5,38 @@
       "sources": [
         {
           "Strong": {
-            "path": "./bun.lockb",
-            "source": "BunLockb"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./package.json",
+            "path": "./benchmarks/handle-event/package.json",
             "source": "PackageJson"
           }
         },
         {
-          "Weak": "MjsFile"
-        },
-        {
-          "Weak": "TsFile"
-        },
-        {
           "Strong": {
-            "path": "./yarn.lock",
+            "path": "./benchmarks/handle-event/yarn.lock",
             "source": "YarnLock"
           }
         },
         {
           "Strong": {
-            "path": "./tsconfig.json",
-            "source": "TsConfig"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./perf-measures/tsconfig.json",
-            "source": "TsConfig"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./runtime-tests/tsconfig.json",
-            "source": "TsConfig"
-          }
-        },
-        {
-          "Weak": "TsxFile"
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/utils/package.json",
+            "path": "./benchmarks/jsx/package.json",
             "source": "PackageJson"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/routers/package.json",
-            "source": "PackageJson"
+            "path": "./benchmarks/jsx/src/react-jsx/tsconfig.json",
+            "source": "TsConfig"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/routers/yarn.lock",
+            "path": "./benchmarks/jsx/tsconfig.json",
+            "source": "TsConfig"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/jsx/yarn.lock",
             "source": "YarnLock"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/routers/tsconfig.json",
-            "source": "TsConfig"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/routers-deno/deno.json",
-            "source": "DenoJson"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/routers-deno/deno.lock",
-            "source": "DenoLock"
           }
         },
         {
@@ -104,41 +59,62 @@
         },
         {
           "Strong": {
-            "path": "./benchmarks/jsx/package.json",
+            "path": "./benchmarks/routers-deno/deno.json",
+            "source": "DenoJson"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/routers-deno/deno.lock",
+            "source": "DenoLock"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/routers/package.json",
             "source": "PackageJson"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/jsx/yarn.lock",
-            "source": "YarnLock"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/jsx/tsconfig.json",
+            "path": "./benchmarks/routers/tsconfig.json",
             "source": "TsConfig"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/handle-event/package.json",
-            "source": "PackageJson"
+            "path": "./benchmarks/routers/yarn.lock",
+            "source": "YarnLock"
           }
         },
         {
-          "Weak": "JsFile"
-        },
-        {
           "Strong": {
-            "path": "./benchmarks/handle-event/yarn.lock",
-            "source": "YarnLock"
+            "path": "./benchmarks/utils/package.json",
+            "source": "PackageJson"
           }
         },
         {
           "Strong": {
             "path": "./benchmarks/webapp/package.json",
             "source": "PackageJson"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./bun.lockb",
+            "source": "BunLockb"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./package.json",
+            "source": "PackageJson"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./perf-measures/tsconfig.json",
+            "source": "TsConfig"
           }
         },
         {
@@ -155,9 +131,33 @@
         },
         {
           "Strong": {
-            "path": "./benchmarks/jsx/src/react-jsx/tsconfig.json",
+            "path": "./runtime-tests/tsconfig.json",
             "source": "TsConfig"
           }
+        },
+        {
+          "Strong": {
+            "path": "./tsconfig.json",
+            "source": "TsConfig"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./yarn.lock",
+            "source": "YarnLock"
+          }
+        },
+        {
+          "Weak": "JsFile"
+        },
+        {
+          "Weak": "MjsFile"
+        },
+        {
+          "Weak": "TsFile"
+        },
+        {
+          "Weak": "TsxFile"
         }
       ]
     }
@@ -167,17 +167,17 @@
       "language": "JavaScript",
       "versions": [
         {
-          "raw": ">=16.9.0",
           "parsed": {
+            "build": null,
+            "constraint": "GreaterOrEqual",
             "major": 16,
             "minor": 9,
             "patch": 0,
-            "pre_release": null,
-            "build": null,
-            "constraint": "GreaterOrEqual"
+            "pre_release": null
           },
-          "source": "PackageJsonEnginesNode",
-          "path": "./package.json"
+          "path": "./package.json",
+          "raw": ">=16.9.0",
+          "source": "PackageJsonEnginesNode"
         }
       ]
     }
