@@ -17,13 +17,10 @@ pub struct ProjectMetadata {
     pub versions: Vec<VersionDetection>,
 }
 
+#[derive(Default)]
 pub struct DetectionEngine;
 
 impl DetectionEngine {
-    pub fn new() -> Self {
-        DetectionEngine
-    }
-
     pub fn detect(&self, path: &Path) -> ProjectMetadata {
         let languages: Vec<LanguageDetection> =
             DirectoryIterator(VecDeque::from([path.to_path_buf()]))
