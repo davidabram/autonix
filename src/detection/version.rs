@@ -62,8 +62,10 @@ pub struct VersionDetection {
     pub versions: Vec<VersionInfo>,
 }
 
-impl VersionDetection {
-    pub fn from_language_detection(lang_detection: &LanguageDetection) -> Option<Self> {
+impl TryFrom<&LanguageDetection> for VersionDetection {
+    type Error = ();
+
+    fn try_from(lang_detection: &LanguageDetection) -> Result<Self, Self::Error> {
         let versions: Vec<VersionInfo> = lang_detection
             .sources
             .iter()
@@ -72,9 +74,9 @@ impl VersionDetection {
             .collect();
 
         if versions.is_empty() {
-            None
+            Err(())
         } else {
-            Some(VersionDetection {
+            Ok(VersionDetection {
                 language: lang_detection.language.clone(),
                 versions,
             })
@@ -1302,8 +1304,8 @@ setup(
                 ],
             );
 
-            let version_detection = VersionDetection::from_language_detection(&lang_detection);
-            assert!(version_detection.is_some());
+            let version_detection = VersionDetection::try_from(&lang_detection);
+            assert!(version_detection.is_ok());
 
             let detection = version_detection.unwrap();
             assert!(matches!(detection.language, Language::Go));
@@ -1333,8 +1335,8 @@ setup(
                 )],
             );
 
-            let version_detection = VersionDetection::from_language_detection(&lang_detection);
-            assert!(version_detection.is_none());
+            let version_detection = VersionDetection::try_from(&lang_detection);
+            assert!(version_detection.is_err());
         }
 
         #[test]
@@ -1357,8 +1359,8 @@ setup(
                 ],
             );
 
-            let version_detection = VersionDetection::from_language_detection(&lang_detection);
-            assert!(version_detection.is_some());
+            let version_detection = VersionDetection::try_from(&lang_detection);
+            assert!(version_detection.is_ok());
 
             let detection = version_detection.unwrap();
             assert_eq!(detection.versions.len(), 1);
