@@ -42,7 +42,7 @@ let
         exit 1
       fi
 
-      jq --sort-keys '
+      NORMALIZE_FILTER='
         .languages |= (
           sort_by(.language) |
           map(.sources |= (
@@ -57,31 +57,18 @@ let
             map(del(._sort_key))
           ))
         ) |
-        .versions |= (
+        .package_managers |= (
           sort_by(.language) |
-          map(.versions |= sort_by(.path))
-        )
-      ' "$TMPDIR/actual.json" > "$TMPDIR/actual-normalized.json"
-      jq --sort-keys '
-        .languages |= (
-          sort_by(.language) |
-          map(.sources |= (
-            map(
-              if has("Strong") then
-                {Strong: .Strong, _sort_key: ("0_" + .Strong.path)}
-              else
-                {Weak: .Weak, _sort_key: ("1_" + .Weak)}
-              end
-            ) |
-            sort_by(._sort_key) |
-            map(del(._sort_key))
-          ))
+          map(.package_managers |= sort_by(.path))
         ) |
         .versions |= (
           sort_by(.language) |
           map(.versions |= sort_by(.path))
         )
-      ' ${goldenFile} > "$TMPDIR/expected-normalized.json"
+      '
+
+      jq --sort-keys "$NORMALIZE_FILTER" "$TMPDIR/actual.json" > "$TMPDIR/actual-normalized.json"
+      jq --sort-keys "$NORMALIZE_FILTER" ${goldenFile} > "$TMPDIR/expected-normalized.json"
 
       if ! diff -u "$TMPDIR/expected-normalized.json" "$TMPDIR/actual-normalized.json" > "$TMPDIR/diff.txt"; then
         echo "Output does not match golden file for ${repo.name}"

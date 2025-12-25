@@ -7,14 +7,17 @@ use std::{
 
 pub mod language;
 pub mod version;
+pub mod package_manager;
 
 pub use language::*;
 pub use version::*;
+pub use package_manager::*;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectMetadata {
     pub languages: Vec<LanguageDetection>,
     pub versions: Vec<VersionDetection>,
+    pub package_managers: Vec<PackageManagerDetection>,
 }
 
 #[derive(Default)]
@@ -42,9 +45,15 @@ impl DetectionEngine {
             .filter_map(|lang| VersionDetection::try_from(lang).ok())
             .collect();
 
+        let package_managers = languages
+            .iter()
+            .filter_map(|lang| PackageManagerDetection::try_from(lang).ok())
+            .collect();
+
         ProjectMetadata {
             languages,
             versions,
+            package_managers,
         }
     }
 }

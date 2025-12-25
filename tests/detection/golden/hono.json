@@ -162,6 +162,79 @@
       ]
     }
   ],
+  "package_managers": [
+    {
+      "language": "JavaScript",
+      "package_managers": [
+        {
+          "package_manager": "Yarn",
+          "path": "./benchmarks/handle-event/yarn.lock",
+          "source": "YarnLock",
+          "version": null
+        },
+        {
+          "package_manager": "Yarn",
+          "path": "./benchmarks/jsx/yarn.lock",
+          "source": "YarnLock",
+          "version": null
+        },
+        {
+          "package_manager": "Bun",
+          "path": "./benchmarks/query-param/bun.lockb",
+          "source": "BunLockb",
+          "version": null
+        },
+        {
+          "package_manager": "Npm",
+          "path": "./benchmarks/query-param/package-lock.json",
+          "source": "PackageLockJson",
+          "version": null
+        },
+        {
+          "package_manager": "Deno",
+          "path": "./benchmarks/routers-deno/deno.json",
+          "source": "DenoJson",
+          "version": null
+        },
+        {
+          "package_manager": "Deno",
+          "path": "./benchmarks/routers-deno/deno.lock",
+          "source": "DenoLock",
+          "version": null
+        },
+        {
+          "package_manager": "Yarn",
+          "path": "./benchmarks/routers/yarn.lock",
+          "source": "YarnLock",
+          "version": null
+        },
+        {
+          "package_manager": "Bun",
+          "path": "./bun.lockb",
+          "source": "BunLockb",
+          "version": null
+        },
+        {
+          "package_manager": "Deno",
+          "path": "./runtime-tests/deno/deno.json",
+          "source": "DenoJson",
+          "version": null
+        },
+        {
+          "package_manager": "Deno",
+          "path": "./runtime-tests/deno/deno.lock",
+          "source": "DenoLock",
+          "version": null
+        },
+        {
+          "package_manager": "Yarn",
+          "path": "./yarn.lock",
+          "source": "YarnLock",
+          "version": null
+        }
+      ]
+    }
+  ],
   "versions": [
     {
       "language": "JavaScript",

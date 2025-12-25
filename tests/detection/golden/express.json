@@ -15,6 +15,7 @@
       ]
     }
   ],
+  "package_managers": [],
   "versions": [
     {
       "language": "JavaScript",

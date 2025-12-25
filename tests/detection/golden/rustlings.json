@@ -39,5 +39,42 @@
       ]
     }
   ],
+  "package_managers": [
+    {
+      "language": "Rust",
+      "package_managers": [
+        {
+          "package_manager": "Cargo",
+          "path": "./Cargo.lock",
+          "source": "CargoLock",
+          "version": null
+        },
+        {
+          "package_manager": "Cargo",
+          "path": "./Cargo.toml",
+          "source": "CargoToml",
+          "version": null
+        },
+        {
+          "package_manager": "Cargo",
+          "path": "./dev/Cargo.toml",
+          "source": "CargoToml",
+          "version": null
+        },
+        {
+          "package_manager": "Cargo",
+          "path": "./rustlings-macros/Cargo.toml",
+          "source": "CargoToml",
+          "version": null
+        },
+        {
+          "package_manager": "Cargo",
+          "path": "./tests/test_exercises/dev/Cargo.toml",
+          "source": "CargoToml",
+          "version": null
+        }
+      ]
+    }
+  ],
   "versions": []
 }

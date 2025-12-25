@@ -85,6 +85,65 @@
       ]
     }
   ],
+  "package_managers": [
+    {
+      "language": "Go",
+      "package_managers": [
+        {
+          "package_manager": "Go",
+          "path": "./go.mod",
+          "source": "GoMod",
+          "version": null
+        },
+        {
+          "package_manager": "Go",
+          "path": "./go.sum",
+          "source": "GoSum",
+          "version": null
+        },
+        {
+          "package_manager": "Go",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+          "source": "GoMod",
+          "version": null
+        },
+        {
+          "package_manager": "Go",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.sum",
+          "source": "GoSum",
+          "version": null
+        }
+      ]
+    },
+    {
+      "language": "JavaScript",
+      "package_managers": [
+        {
+          "package_manager": "Yarn",
+          "path": "./webui/package.json",
+          "source": "PackageJson",
+          "version": "1.22.22"
+        },
+        {
+          "package_manager": "Yarn",
+          "path": "./webui/yarn.lock",
+          "source": "YarnLock",
+          "version": null
+        }
+      ]
+    },
+    {
+      "language": "Python",
+      "package_managers": [
+        {
+          "package_manager": "Pip",
+          "path": "./docs/requirements.txt",
+          "source": "RequirementsTxt",
+          "version": null
+        }
+      ]
+    }
+  ],
   "versions": [
     {
       "language": "Go",

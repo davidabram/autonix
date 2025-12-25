@@ -39,6 +39,43 @@
       ]
     }
   ],
+  "package_managers": [
+    {
+      "language": "Python",
+      "package_managers": [
+        {
+          "package_manager": "Pip",
+          "path": "./examples/celery/pyproject.toml",
+          "source": "PyprojectToml",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
+          "path": "./examples/celery/requirements.txt",
+          "source": "RequirementsTxt",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
+          "path": "./examples/javascript/pyproject.toml",
+          "source": "PyprojectToml",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
+          "path": "./examples/tutorial/pyproject.toml",
+          "source": "PyprojectToml",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
+          "path": "./pyproject.toml",
+          "source": "PyprojectToml",
+          "version": null
+        }
+      ]
+    }
+  ],
   "versions": [
     {
       "language": "Python",
