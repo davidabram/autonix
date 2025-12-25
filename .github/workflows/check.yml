@@ -40,3 +40,52 @@ jobs:
 
       - name: Run flake check
         run: nix flake check -L
+
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6.0.1
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31.9.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Restore and cache Nix store
+        uses: nix-community/cache-nix-action@v6.1.3
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 2G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-last-accessed: 604800
+          purge-primary-key: never
+
+      - name: Generate coverage report
+        run: |
+          nix build .#checks.x86_64-linux.coverage -L
+          cp result/lcov.info ./lcov.info
+          cp result/coverage-summary.txt ./coverage-summary.txt
+          cp -r result/html ./coverage-html
+
+      - name: Upload coverage reports to Codecov
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v5.5.2
+        with:
+          files: ./lcov.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: coverage-html-report
+          path: ./coverage-html/
+          retention-days: 30

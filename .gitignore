@@ -8,6 +8,9 @@ result-*
 
 .direnv/
 
+lcov.info
+coverage-summary.txt
+
 .vscode/
 .idea/
 *.swp
