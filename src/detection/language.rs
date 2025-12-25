@@ -161,7 +161,6 @@ impl TryFrom<PathBuf> for LanguageDetectionSignal {
 
     fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
         let filename = path.file_name().ok_or(())?.to_str().ok_or(())?;
-        let extension = path.extension().ok_or(())?.to_str().ok_or(())?;
 
         let source = match filename {
             // Go
@@ -211,16 +210,17 @@ impl TryFrom<PathBuf> for LanguageDetectionSignal {
             return Ok(LanguageDetectionSignal::Strong { path, source });
         }
 
+        let extension = path.extension().and_then(|e| e.to_str());
         match extension {
-            "go" => Ok(LanguageDetectionSource::GoFile),
-            "rs" => Ok(LanguageDetectionSource::RsFile),
-            "py" => Ok(LanguageDetectionSource::PyFile),
-            "js" => Ok(LanguageDetectionSource::JsFile),
-            "mjs" => Ok(LanguageDetectionSource::MjsFile),
-            "cjs" => Ok(LanguageDetectionSource::CjsFile),
-            "ts" => Ok(LanguageDetectionSource::TsFile),
-            "jsx" => Ok(LanguageDetectionSource::JsxFile),
-            "tsx" => Ok(LanguageDetectionSource::TsxFile),
+            Some("go") => Ok(LanguageDetectionSource::GoFile),
+            Some("rs") => Ok(LanguageDetectionSource::RsFile),
+            Some("py") => Ok(LanguageDetectionSource::PyFile),
+            Some("js") => Ok(LanguageDetectionSource::JsFile),
+            Some("mjs") => Ok(LanguageDetectionSource::MjsFile),
+            Some("cjs") => Ok(LanguageDetectionSource::CjsFile),
+            Some("ts") => Ok(LanguageDetectionSource::TsFile),
+            Some("jsx") => Ok(LanguageDetectionSource::JsxFile),
+            Some("tsx") => Ok(LanguageDetectionSource::TsxFile),
             _ => Err(()),
         }
         .map(LanguageDetectionSignal::Weak)

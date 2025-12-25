@@ -37,6 +37,12 @@
       "sources": [
         {
           "Strong": {
+            "path": "./webui/.nvmrc",
+            "source": "NvmrcFile"
+          }
+        },
+        {
+          "Strong": {
             "path": "./webui/jsconfig.json",
             "source": "JsConfig"
           }
@@ -114,6 +120,19 @@
     {
       "language": "JavaScript",
       "versions": [
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "Exact",
+            "major": 20,
+            "minor": 11,
+            "patch": 0,
+            "pre_release": null
+          },
+          "path": "./webui/.nvmrc",
+          "raw": "20.11.0",
+          "source": "NvmrcFile"
+        },
         {
           "parsed": {
             "build": null,
