@@ -909,5 +909,105 @@ name = "test"
             assert!(has_poetry);
             assert!(has_pdm);
         }
+
+        #[test]
+        fn test_pyproject_toml_with_uv_dependency_groups() {
+            let dir = TempDir::new().unwrap();
+            let content = r#"
+[dependency-groups]
+dev = ["pytest"]
+"#;
+            let pyproject_path = create_temp_file(&dir, "pyproject.toml", content);
+
+            let pms = detect_from_pyproject_toml(&pyproject_path);
+            assert_eq!(pms.len(), 1);
+            assert_eq!(pms[0].package_manager, PackageManager::Uv);
+        }
+
+        #[test]
+        fn test_nonexistent_files() {
+            let path = Path::new("/nonexistent/file.txt");
+            assert!(detect_npm(path).is_empty());
+            assert!(detect_yarn(path).is_empty());
+            assert!(detect_pnpm(path).is_empty());
+            assert!(detect_go_mod(path).is_empty());
+            assert!(detect_cargo_toml(path).is_empty());
+        }
+
+        #[test]
+        fn test_detect_deno_jsonc() {
+            let dir = TempDir::new().unwrap();
+            let path = create_temp_file(&dir, "deno.jsonc", "{}");
+
+            let pms = detect_deno_jsonc(&path);
+            assert_eq!(pms.len(), 1);
+            assert_eq!(pms[0].package_manager, PackageManager::Deno);
+            assert!(matches!(pms[0].source, PackageManagerSource::DenoJsonc));
+        }
+
+        #[test]
+        fn test_detect_bun_lock() {
+            let dir = TempDir::new().unwrap();
+            let path = create_temp_file(&dir, "bun.lock", "");
+
+            let pms = detect_bun_lock(&path);
+            assert_eq!(pms.len(), 1);
+            assert_eq!(pms[0].package_manager, PackageManager::Bun);
+            assert!(matches!(pms[0].source, PackageManagerSource::BunLock));
+        }
+
+        #[test]
+        fn test_detect_deno_lock() {
+            let dir = TempDir::new().unwrap();
+            let path = create_temp_file(&dir, "deno.lock", "{}");
+
+            let pms = detect_deno_lock(&path);
+            assert_eq!(pms.len(), 1);
+            assert_eq!(pms[0].package_manager, PackageManager::Deno);
+            assert!(matches!(pms[0].source, PackageManagerSource::DenoLock));
+        }
+
+        #[test]
+        fn test_detect_pipenv_lock() {
+            let dir = TempDir::new().unwrap();
+            let path = create_temp_file(&dir, "Pipfile.lock", "{}");
+
+            let pms = detect_pipenv_lock(&path);
+            assert_eq!(pms.len(), 1);
+            assert_eq!(pms[0].package_manager, PackageManager::Pipenv);
+            assert!(matches!(pms[0].source, PackageManagerSource::PipfileLock));
+        }
+
+        #[test]
+        fn test_package_json_invalid_json() {
+            let dir = TempDir::new().unwrap();
+            let path = create_temp_file(&dir, "package.json", "{ invalid json }");
+
+            let pms = detect_from_package_json(&path);
+            assert!(pms.is_empty());
+        }
+
+        #[test]
+        fn test_package_json_missing_file() {
+            let path = Path::new("/nonexistent/package.json");
+            let pms = detect_from_package_json(path);
+            assert!(pms.is_empty());
+        }
+
+        #[test]
+        fn test_pyproject_toml_invalid_toml() {
+            let dir = TempDir::new().unwrap();
+            let path = create_temp_file(&dir, "pyproject.toml", "invalid toml {{");
+
+            let pms = detect_from_pyproject_toml(&path);
+            assert!(pms.is_empty());
+        }
+
+        #[test]
+        fn test_pyproject_toml_missing_file() {
+            let path = Path::new("/nonexistent/pyproject.toml");
+            let pms = detect_from_pyproject_toml(path);
+            assert!(pms.is_empty());
+        }
     }
 }

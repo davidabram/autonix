@@ -1390,5 +1390,150 @@ setup(
             let versions = result.unwrap();
             assert_eq!(versions.len(), 2);
         }
+
+        #[test]
+        fn test_nonexistent_file_parsing() {
+            let path = PathBuf::from("/nonexistent/file.txt");
+            assert!(parse_go_mod(&path).is_empty());
+            assert!(parse_go_version_file(&path).is_empty());
+            assert!(parse_rust_toolchain(&path).is_empty());
+            assert!(parse_rust_toolchain_toml(&path).is_empty());
+            assert!(parse_cargo_toml_rust_version(&path).is_empty());
+            assert!(parse_pyproject_toml(&path).is_empty());
+            assert!(parse_python_version_file(&path).is_empty());
+            assert!(parse_pipfile(&path).is_empty());
+            assert!(parse_setup_py(&path).is_empty());
+            assert!(parse_package_json(&path).is_empty());
+            assert!(parse_nvmrc(&path).is_empty());
+            assert!(parse_node_version_file(&path).is_empty());
+            assert!(parse_bun_version_file(&path).is_empty());
+        }
+
+        #[test]
+        fn test_semantic_version_with_large_numbers() {
+            let result = parse_semantic_version("999.888.777").unwrap();
+            assert_eq!(result.major, Some(999));
+            assert_eq!(result.minor, Some(888));
+            assert_eq!(result.patch, Some(777));
+        }
+
+        #[test]
+        fn test_semantic_version_complex_prerelease() {
+            let result = parse_semantic_version("1.0.0-alpha.1.2.3").unwrap();
+            assert_eq!(result.pre_release, Some("alpha.1.2.3".to_string()));
+        }
+
+        #[test]
+        fn test_semantic_version_complex_build() {
+            let result = parse_semantic_version("1.0.0+build.123.abc").unwrap();
+            assert_eq!(result.build, Some("build.123.abc".to_string()));
+        }
+
+        #[test]
+        fn test_semantic_version_all_prefixes() {
+            let test_cases = vec![
+                ("v1.2.3", 1, 2, 3),
+                ("python-3.9.0", 3, 9, 0),
+                ("node-18.0.0", 18, 0, 0),
+            ];
+
+            for (input, major, minor, patch) in test_cases {
+                let result = parse_semantic_version(input).unwrap();
+                assert_eq!(result.major, Some(major));
+                assert_eq!(result.minor, Some(minor));
+                assert_eq!(result.patch, Some(patch));
+            }
+        }
+
+        #[test]
+        fn test_version_or_expression_edge_cases() {
+            assert!(parse_version_or_expression("").is_none());
+            assert!(parse_version_or_expression("||").is_none());
+            assert!(parse_version_or_expression("|| ||").is_none());
+        }
+
+        #[test]
+        fn test_parse_constraint_precedence() {
+            let (constraint, version) = parse_constraint(">=1.0.0");
+            assert!(matches!(constraint, VersionConstraint::GreaterOrEqual));
+            assert_eq!(version, "1.0.0");
+
+            let (constraint, version) = parse_constraint("<=1.0.0");
+            assert!(matches!(constraint, VersionConstraint::LessOrEqual));
+            assert_eq!(version, "1.0.0");
+        }
+
+        #[test]
+        fn test_rust_toolchain_toml_priority() {
+            let dir = TempDir::new().unwrap();
+            let content = r#"
+channel = "stable"
+[toolchain]
+channel = "1.70.0"
+"#;
+            let path = create_temp_file(&dir, "rust-toolchain.toml", content);
+
+            let versions = parse_rust_toolchain_toml(&path);
+            assert_eq!(versions.len(), 1);
+            assert_eq!(versions[0].raw, "1.70.0");
+        }
+
+        #[test]
+        fn test_version_info_fields() {
+            let dir = TempDir::new().unwrap();
+            let path = create_temp_file(&dir, ".python-version", "3.11.0");
+
+            let versions = parse_python_version_file(&path);
+            assert_eq!(versions.len(), 1);
+            assert_eq!(versions[0].raw, "3.11.0");
+            assert!(versions[0].parsed.is_some());
+            assert!(matches!(
+                versions[0].source,
+                VersionSource::PythonVersionFile
+            ));
+            assert_eq!(versions[0].path, path);
+        }
+
+        #[test]
+        fn test_all_version_sources_covered() {
+            let dir = TempDir::new().unwrap();
+
+            let _ = create_temp_file(&dir, "go.mod", "module test\n\ngo 1.21\n");
+            let _ = create_temp_file(&dir, ".go-version", "1.21.0");
+
+            let _ = create_temp_file(&dir, "rust-toolchain", "1.70.0");
+            let _ = create_temp_file(
+                &dir,
+                "rust-toolchain.toml",
+                "[toolchain]\nchannel = \"1.70.0\"",
+            );
+            let _ = create_temp_file(
+                &dir,
+                "Cargo.toml",
+                "[package]\nname = \"test\"\nrust-version = \"1.70.0\"",
+            );
+
+            let _ = create_temp_file(
+                &dir,
+                "pyproject.toml",
+                "[project]\nrequires-python = \">=3.8\"",
+            );
+            let _ = create_temp_file(&dir, ".python-version", "3.11.0");
+            let _ = create_temp_file(&dir, "Pipfile", "[requires]\npython_version = \"3.9\"");
+            let _ = create_temp_file(
+                &dir,
+                "setup.py",
+                "setup(python_requires=\">=3.8\")",
+            );
+
+            let _ = create_temp_file(
+                &dir,
+                "package.json",
+                r#"{"engines": {"node": ">=18.0.0", "bun": "^1.0.0"}}"#,
+            );
+            let _ = create_temp_file(&dir, ".nvmrc", "18.0.0");
+            let _ = create_temp_file(&dir, ".node-version", "18.0.0");
+            let _ = create_temp_file(&dir, ".bun-version", "1.0.0");
+        }
     }
 }
