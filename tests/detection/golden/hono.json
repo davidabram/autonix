@@ -242,6 +242,19 @@
         {
           "parsed": {
             "build": null,
+            "constraint": "Caret",
+            "major": 5,
+            "minor": 3,
+            "patch": 2,
+            "pre_release": null
+          },
+          "path": "./benchmarks/jsx/package.json",
+          "raw": "^5.3.2",
+          "source": "PackageJsonTypescript"
+        },
+        {
+          "parsed": {
+            "build": null,
             "constraint": "GreaterOrEqual",
             "major": 16,
             "minor": 9,
@@ -251,6 +264,19 @@
           "path": "./package.json",
           "raw": ">=16.9.0",
           "source": "PackageJsonEnginesNode"
+        },
+        {
+          "parsed": {
+            "build": null,
+            "constraint": "Caret",
+            "major": 5,
+            "minor": 3,
+            "patch": 3,
+            "pre_release": null
+          },
+          "path": "./package.json",
+          "raw": "^5.3.3",
+          "source": "PackageJsonTypescript"
         }
       ]
     }

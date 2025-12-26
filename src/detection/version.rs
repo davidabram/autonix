@@ -24,6 +24,8 @@ pub enum VersionSource {
 
     BunVersionFile,
     PackageJsonEnginesBun,
+
+    PackageJsonTypescript,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -353,6 +355,22 @@ fn parse_package_json(path: &PathBuf) -> Vec<VersionInfo> {
                 source: VersionSource::PackageJsonEnginesBun,
                 path: path.clone(),
             });
+        }
+    }
+
+    for deps_key in ["dependencies", "devDependencies"] {
+        if let Some(deps) = parsed.get(deps_key).and_then(|d| d.as_object())
+            && let Some(ts_version) = deps.get("typescript").and_then(|v| v.as_str())
+        {
+            let parsed_version = parse_version_or_expression(ts_version);
+
+            versions.push(VersionInfo {
+                raw: ts_version.to_string(),
+                parsed: parsed_version,
+                source: VersionSource::PackageJsonTypescript,
+                path: path.clone(),
+            });
+            break;
         }
     }
 
@@ -1217,6 +1235,152 @@ setup(
                 let versions = parse_package_json(&path);
                 assert!(versions.is_empty());
             }
+
+            #[test]
+            fn test_package_json_with_typescript() {
+                let dir = TempDir::new().unwrap();
+                let content = r#"
+{
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
+"#;
+                let path = create_temp_file(&dir, "package.json", content);
+
+                let versions = parse_package_json(&path);
+                assert!(
+                    versions
+                        .iter()
+                        .any(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                );
+                let ts_version = versions
+                    .iter()
+                    .find(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                    .unwrap();
+                assert_eq!(ts_version.raw, "^5.0.0");
+                assert_eq!(ts_version.parsed.as_ref().unwrap().major, Some(5));
+                assert_eq!(ts_version.parsed.as_ref().unwrap().minor, Some(0));
+                assert_eq!(ts_version.parsed.as_ref().unwrap().patch, Some(0));
+            }
+
+            #[test]
+            fn test_package_json_typescript_in_dependencies() {
+                let dir = TempDir::new().unwrap();
+                let content = r#"
+{
+  "dependencies": {
+    "typescript": "~4.9.5"
+  }
+}
+"#;
+                let path = create_temp_file(&dir, "package.json", content);
+
+                let versions = parse_package_json(&path);
+                let ts_version = versions
+                    .iter()
+                    .find(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                    .unwrap();
+                assert_eq!(ts_version.raw, "~4.9.5");
+                assert_eq!(ts_version.parsed.as_ref().unwrap().major, Some(4));
+                assert_eq!(ts_version.parsed.as_ref().unwrap().minor, Some(9));
+                assert_eq!(ts_version.parsed.as_ref().unwrap().patch, Some(5));
+            }
+
+            #[test]
+            fn test_package_json_typescript_both_deps() {
+                let dir = TempDir::new().unwrap();
+                let content = r#"
+{
+  "dependencies": {
+    "typescript": "5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.0.0"
+  }
+}
+"#;
+                let path = create_temp_file(&dir, "package.json", content);
+
+                let versions = parse_package_json(&path);
+                let ts_versions: Vec<_> = versions
+                    .iter()
+                    .filter(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                    .collect();
+                assert_eq!(ts_versions.len(), 1);
+            }
+
+            #[test]
+            fn test_package_json_with_node_and_typescript() {
+                let dir = TempDir::new().unwrap();
+                let content = r#"
+{
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
+"#;
+                let path = create_temp_file(&dir, "package.json", content);
+
+                let versions = parse_package_json(&path);
+                assert_eq!(versions.len(), 2);
+                assert!(
+                    versions
+                        .iter()
+                        .any(|v| matches!(v.source, VersionSource::PackageJsonEnginesNode))
+                );
+                assert!(
+                    versions
+                        .iter()
+                        .any(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                );
+            }
+
+            #[test]
+            fn test_package_json_no_typescript() {
+                let dir = TempDir::new().unwrap();
+                let content = r#"
+{
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}
+"#;
+                let path = create_temp_file(&dir, "package.json", content);
+
+                let versions = parse_package_json(&path);
+                assert!(
+                    !versions
+                        .iter()
+                        .any(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                );
+            }
+
+            #[test]
+            fn test_package_json_typescript_exact_version() {
+                let dir = TempDir::new().unwrap();
+                let content = r#"
+{
+  "devDependencies": {
+    "typescript": "5.3.3"
+  }
+}
+"#;
+                let path = create_temp_file(&dir, "package.json", content);
+
+                let versions = parse_package_json(&path);
+                let ts_version = versions
+                    .iter()
+                    .find(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                    .unwrap();
+                assert_eq!(ts_version.raw, "5.3.3");
+                assert_eq!(ts_version.parsed.as_ref().unwrap().major, Some(5));
+                assert_eq!(ts_version.parsed.as_ref().unwrap().minor, Some(3));
+                assert_eq!(ts_version.parsed.as_ref().unwrap().patch, Some(3));
+            }
         }
     }
 
@@ -1520,11 +1684,7 @@ channel = "1.70.0"
             );
             let _ = create_temp_file(&dir, ".python-version", "3.11.0");
             let _ = create_temp_file(&dir, "Pipfile", "[requires]\npython_version = \"3.9\"");
-            let _ = create_temp_file(
-                &dir,
-                "setup.py",
-                "setup(python_requires=\">=3.8\")",
-            );
+            let _ = create_temp_file(&dir, "setup.py", "setup(python_requires=\">=3.8\")");
 
             let _ = create_temp_file(
                 &dir,
@@ -1534,6 +1694,93 @@ channel = "1.70.0"
             let _ = create_temp_file(&dir, ".nvmrc", "18.0.0");
             let _ = create_temp_file(&dir, ".node-version", "18.0.0");
             let _ = create_temp_file(&dir, ".bun-version", "1.0.0");
+        }
+
+        #[test]
+        fn test_typescript_version_detection_from_language_detection() {
+            let dir = TempDir::new().unwrap();
+            let package_json_content = r#"
+{
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.0.0"
+  }
+}
+"#;
+            let package_json_path = create_temp_file(&dir, "package.json", package_json_content);
+
+            let lang_detection = LanguageDetection::new(
+                Language::JavaScript,
+                vec![LanguageDetectionSignal::Strong {
+                    path: package_json_path,
+                    source: LanguageDetectionSource::PackageJson,
+                }],
+            );
+
+            let version_detection = VersionDetection::try_from(&lang_detection);
+            assert!(version_detection.is_ok());
+
+            let detection = version_detection.unwrap();
+            assert!(matches!(detection.language, Language::JavaScript));
+
+            assert_eq!(detection.versions.len(), 2);
+
+            let node_version = detection
+                .versions
+                .iter()
+                .find(|v| matches!(v.source, VersionSource::PackageJsonEnginesNode))
+                .unwrap();
+            assert_eq!(node_version.raw, ">=18.0.0");
+
+            let ts_version = detection
+                .versions
+                .iter()
+                .find(|v| matches!(v.source, VersionSource::PackageJsonTypescript))
+                .unwrap();
+            assert_eq!(ts_version.raw, "^5.3.3");
+            assert_eq!(ts_version.parsed.as_ref().unwrap().major, Some(5));
+            assert_eq!(ts_version.parsed.as_ref().unwrap().minor, Some(3));
+        }
+
+        #[test]
+        fn test_typescript_only_version_detection() {
+            let dir = TempDir::new().unwrap();
+            let package_json_content = r#"
+{
+  "name": "my-typescript-project",
+  "devDependencies": {
+    "typescript": "~5.0.4"
+  }
+}
+"#;
+            let package_json_path = create_temp_file(&dir, "package.json", package_json_content);
+
+            let lang_detection = LanguageDetection::new(
+                Language::JavaScript,
+                vec![LanguageDetectionSignal::Strong {
+                    path: package_json_path,
+                    source: LanguageDetectionSource::PackageJson,
+                }],
+            );
+
+            let version_detection = VersionDetection::try_from(&lang_detection);
+            assert!(version_detection.is_ok());
+
+            let detection = version_detection.unwrap();
+            assert_eq!(detection.versions.len(), 1);
+
+            let ts_version = &detection.versions[0];
+            assert!(matches!(
+                ts_version.source,
+                VersionSource::PackageJsonTypescript
+            ));
+            assert_eq!(ts_version.raw, "~5.0.4");
+            assert_eq!(ts_version.parsed.as_ref().unwrap().major, Some(5));
+            assert_eq!(ts_version.parsed.as_ref().unwrap().minor, Some(0));
+            assert_eq!(ts_version.parsed.as_ref().unwrap().patch, Some(4));
         }
     }
 }

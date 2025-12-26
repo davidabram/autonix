@@ -31,6 +31,10 @@
           version = "0.1.0";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
+          meta = {
+            description = "Automatic Nix package detection and version management";
+            license = pkgs.lib.licenses.mit;
+          };
         };
 
         unitTests = pkgs.rustPlatform.buildRustPackage {
@@ -110,6 +114,9 @@
           default = {
             type = "app";
             program = "${autonix}/bin/autonix";
+            meta = {
+              description = "Run autonix CLI";
+            };
           };
           test = {
             type = "app";
@@ -120,6 +127,9 @@
               echo ""
               echo "All unit tests passed!"
             '');
+            meta = {
+              description = "Run autonix unit tests";
+            };
           };
           coverage = {
             type = "app";
@@ -139,6 +149,9 @@
               echo "HTML report available at: target/llvm-cov/html/index.html"
               echo "LCOV file available at: lcov.info"
             '');
+            meta = {
+              description = "Generate code coverage report for autonix";
+            };
           };
         };
 
