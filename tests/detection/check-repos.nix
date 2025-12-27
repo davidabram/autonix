@@ -61,6 +61,14 @@ let
           sort_by(.language) |
           map(.package_managers |= sort_by(.path))
         ) |
+        .task_runners |= (
+          sort_by(.path) |
+          map(.commands |= (
+            .test |= sort_by(.name) |
+            .build |= sort_by(.name) |
+            .other |= sort_by(.name)
+          ))
+        ) |
         .versions |= (
           sort_by(.language) |
           map(.versions |= sort_by(.path))

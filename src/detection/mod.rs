@@ -6,18 +6,21 @@ use std::{
 };
 
 pub mod language;
-pub mod version;
 pub mod package_manager;
+pub mod task_runner;
+pub mod version;
 
 pub use language::*;
-pub use version::*;
 pub use package_manager::*;
+pub use task_runner::*;
+pub use version::*;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectMetadata {
     pub languages: Vec<LanguageDetection>,
     pub versions: Vec<VersionDetection>,
     pub package_managers: Vec<PackageManagerDetection>,
+    pub task_runners: Vec<TaskRunnerDetection>,
 }
 
 #[derive(Default)]
@@ -25,20 +28,28 @@ pub struct DetectionEngine;
 
 impl DetectionEngine {
     pub fn detect(&self, path: &Path) -> ProjectMetadata {
-        let languages: Vec<LanguageDetection> =
-            DirectoryIterator(VecDeque::from([path.to_path_buf()]))
-                .filter_map(|path| LanguageDetectionSignal::try_from(path).ok())
-                .fold(
-                    HashMap::<Language, Vec<LanguageDetectionSignal>>::new(),
-                    |mut acc, signal| {
-                        let lang = (&signal).into();
-                        acc.entry(lang).or_default().push(signal);
-                        acc
-                    },
-                )
-                .into_iter()
-                .map(|(language, sources)| LanguageDetection::new(language, sources))
-                .collect();
+        let paths: Vec<PathBuf> = DirectoryIterator(VecDeque::from([path.to_path_buf()])).collect();
+
+        let languages: Vec<LanguageDetection> = paths
+            .iter()
+            .filter_map(|path| LanguageDetectionSignal::try_from(path.clone()).ok())
+            .fold(
+                HashMap::<Language, Vec<LanguageDetectionSignal>>::new(),
+                |mut acc, signal| {
+                    let lang = (&signal).into();
+                    acc.entry(lang).or_default().push(signal);
+                    acc
+                },
+            )
+            .into_iter()
+            .map(|(language, sources)| LanguageDetection::new(language, sources))
+            .collect();
+
+        let task_runners: Vec<TaskRunnerDetection> = paths
+            .iter()
+            .filter_map(|path| TaskRunnerFile::try_from(path.clone()).ok())
+            .map(TaskRunnerDetection::from)
+            .collect();
 
         let versions = languages
             .iter()
@@ -54,6 +65,7 @@ impl DetectionEngine {
             languages,
             versions,
             package_managers,
+            task_runners,
         }
     }
 }
@@ -153,12 +165,16 @@ mod tests {
     #[test]
     fn test_detection_engine_detect_rust_project() {
         let dir = TempDir::new().unwrap();
-        create_temp_file(&dir, "Cargo.toml", r#"
+        create_temp_file(
+            &dir,
+            "Cargo.toml",
+            r#"
 [package]
 name = "test"
 version = "0.1.0"
 rust-version = "1.70.0"
-"#);
+"#,
+        );
         create_temp_file(&dir, "Cargo.lock", "");
         create_temp_file(&dir, "src/main.rs", "fn main() {}");
 
@@ -210,13 +226,17 @@ rust-version = "1.70.0"
     #[test]
     fn test_detection_engine_detect_javascript_project() {
         let dir = TempDir::new().unwrap();
-        create_temp_file(&dir, "package.json", r#"{
+        create_temp_file(
+            &dir,
+            "package.json",
+            r#"{
   "name": "test",
   "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=18.0.0"
   }
-}"#);
+}"#,
+        );
         create_temp_file(&dir, "pnpm-lock.yaml", "");
         create_temp_file(&dir, "index.js", "console.log('hello')");
 
@@ -272,6 +292,7 @@ rust-version = "1.70.0"
             languages: vec![],
             versions: vec![],
             package_managers: vec![],
+            task_runners: vec![],
         };
 
         let json = serde_json::to_string(&metadata).unwrap();
@@ -291,5 +312,46 @@ rust-version = "1.70.0"
 
         assert!(json.contains("Go"));
         assert!(json.contains("1.21"));
+    }
+
+    #[test]
+    fn test_detection_engine_detect_task_runners() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(
+            &dir,
+            "Makefile",
+            "test:\n\tcargo test\n\nbuild:\n\tcargo build",
+        );
+        create_temp_file(
+            &dir,
+            "package.json",
+            r#"{"scripts": {"test": "jest", "build": "vite build"}}"#,
+        );
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+
+        assert_eq!(metadata.task_runners.len(), 2);
+        assert!(
+            metadata
+                .task_runners
+                .iter()
+                .any(|tr| matches!(tr.task_runner, TaskRunner::Make))
+        );
+        assert!(
+            metadata
+                .task_runners
+                .iter()
+                .any(|tr| matches!(tr.task_runner, TaskRunner::NpmScripts))
+        );
+
+        // Verify commands were extracted
+        let makefile_tr = metadata
+            .task_runners
+            .iter()
+            .find(|tr| matches!(tr.task_runner, TaskRunner::Make))
+            .unwrap();
+        assert!(!makefile_tr.commands.test.is_empty());
+        assert!(!makefile_tr.commands.build.is_empty());
     }
 }

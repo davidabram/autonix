@@ -76,6 +76,44 @@
       ]
     }
   ],
+  "task_runners": [
+    {
+      "commands": {
+        "build": [],
+        "other": [
+          {
+            "command": "make help",
+            "description": null,
+            "name": "help"
+          }
+        ],
+        "test": []
+      },
+      "path": "./docs/Makefile",
+      "source": "Makefile",
+      "task_runner": "Make"
+    },
+    {
+      "commands": {
+        "build": [],
+        "other": [],
+        "test": []
+      },
+      "path": "./examples/celery/src/task_app/tasks.py",
+      "source": "TasksPy",
+      "task_runner": "Invoke"
+    },
+    {
+      "commands": {
+        "build": [],
+        "other": [],
+        "test": []
+      },
+      "path": "./tox.ini",
+      "source": "ToxIni",
+      "task_runner": "Tox"
+    }
+  ],
   "versions": [
     {
       "language": "Python",

@@ -235,6 +235,273 @@
       ]
     }
   ],
+  "task_runners": [
+    {
+      "commands": {
+        "build": [],
+        "other": [
+          {
+            "command": "node --experimental-specifier-resolution=node index.js",
+            "description": null,
+            "name": "start"
+          }
+        ],
+        "test": [
+          {
+            "command": "echo \"Error: no test specified\" && exit 1",
+            "description": null,
+            "name": "test"
+          }
+        ]
+      },
+      "path": "./benchmarks/handle-event/package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "esbuild --minify --minify-syntax --tree-shaking=true --bundle src/{hono,react,preact,nano}.ts --outdir=dist",
+            "description": null,
+            "name": "compare-bundle-size"
+          }
+        ],
+        "other": [
+          {
+            "command": "bun run src/benchmark.ts",
+            "description": null,
+            "name": "bench:bun"
+          },
+          {
+            "command": "esbuild --bundle src/benchmark.ts | node",
+            "description": null,
+            "name": "bench:node"
+          },
+          {
+            "command": "esbuild --bundle src/react-jsx/benchmark.ts | node",
+            "description": null,
+            "name": "bench:react-jsx:node"
+          }
+        ],
+        "test": []
+      },
+      "path": "./benchmarks/jsx/package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    },
+    {
+      "commands": {
+        "build": [],
+        "other": [
+          {
+            "command": "bun run ./src/bench.mts",
+            "description": null,
+            "name": "bench:bun"
+          },
+          {
+            "command": "tsx ./src/bench.mts",
+            "description": null,
+            "name": "bench:node"
+          }
+        ],
+        "test": []
+      },
+      "path": "./benchmarks/query-param/package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    },
+    {
+      "commands": {
+        "build": [],
+        "other": [
+          {
+            "command": "bun run ./src/bench-includes-init.mts",
+            "description": null,
+            "name": "bench-includes-init:bun"
+          },
+          {
+            "command": "tsx ./src/bench-includes-init.mts",
+            "description": null,
+            "name": "bench-includes-init:node"
+          },
+          {
+            "command": "bun run ./src/bench.mts",
+            "description": null,
+            "name": "bench:bun"
+          },
+          {
+            "command": "tsx ./src/bench.mts",
+            "description": null,
+            "name": "bench:node"
+          }
+        ],
+        "test": []
+      },
+      "path": "./benchmarks/routers/package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    },
+    {
+      "commands": {
+        "build": [],
+        "other": [],
+        "test": []
+      },
+      "path": "./benchmarks/utils/package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    },
+    {
+      "commands": {
+        "build": [],
+        "other": [
+          {
+            "command": "wrangler dev hono.js --local --port 8787",
+            "description": null,
+            "name": "start:hono"
+          },
+          {
+            "command": "wrangler dev itty-router.js --local --port 8788",
+            "description": null,
+            "name": "start:itty-router"
+          },
+          {
+            "command": "wrangler dev sunder.js --local --port 8789",
+            "description": null,
+            "name": "start:sunder"
+          }
+        ],
+        "test": []
+      },
+      "path": "./benchmarks/webapp/package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "bun run --shell bun remove-dist && bun ./build/build.ts && bun run copy:package.cjs.json",
+            "description": null,
+            "name": "build"
+          },
+          {
+            "command": "cp ./package.cjs.json ./dist/cjs/package.json && cp ./package.cjs.json ./dist/types/package.json",
+            "description": null,
+            "name": "copy:package.cjs.json"
+          },
+          {
+            "command": "publint",
+            "description": null,
+            "name": "postbuild"
+          },
+          {
+            "command": "rm -rf dist",
+            "description": null,
+            "name": "remove-dist"
+          }
+        ],
+        "other": [
+          {
+            "command": "vitest --run --coverage",
+            "description": null,
+            "name": "coverage"
+          },
+          {
+            "command": "prettier --check --cache \"src/**/*.{js,ts,tsx}\" \"runtime-tests/**/*.{js,ts,tsx}\" \"build/**/*.{js,ts,tsx}\" \"perf-measures/**/*.{js,ts,tsx}\"",
+            "description": null,
+            "name": "format"
+          },
+          {
+            "command": "prettier --write --cache --cache-strategy metadata \"src/**/*.{js,ts,tsx}\" \"runtime-tests/**/*.{js,ts,tsx}\" \"build/**/*.{js,ts,tsx}\" \"perf-measures/**/*.{js,ts,tsx}\"",
+            "description": null,
+            "name": "format:fix"
+          },
+          {
+            "command": "eslint src runtime-tests build perf-measures",
+            "description": null,
+            "name": "lint"
+          },
+          {
+            "command": "eslint src runtime-tests build perf-measures --fix",
+            "description": null,
+            "name": "lint:fix"
+          },
+          {
+            "command": "bun test:deno && bun run build",
+            "description": null,
+            "name": "prerelease"
+          },
+          {
+            "command": "np",
+            "description": null,
+            "name": "release"
+          },
+          {
+            "command": "bun run --shell bun remove-dist && bun ./build/build.ts --watch && bun run copy:package.cjs.json",
+            "description": null,
+            "name": "watch"
+          }
+        ],
+        "test": [
+          {
+            "command": "tsc --noEmit && vitest --run && vitest -c .vitest.config/jsx-runtime-default.ts --run && vitest -c .vitest.config/jsx-runtime-dom.ts --run",
+            "description": null,
+            "name": "test"
+          },
+          {
+            "command": "bun run test && bun test:deno && bun test:bun && bun test:fastly && bun test:node && bun test:workerd && bun test:lambda && bun test:lambda-edge",
+            "description": null,
+            "name": "test:all"
+          },
+          {
+            "command": "bun test --jsx-import-source ../../src/jsx runtime-tests/bun/index.test.tsx",
+            "description": null,
+            "name": "test:bun"
+          },
+          {
+            "command": "deno test --allow-read --allow-env --allow-write --allow-net -c runtime-tests/deno/deno.json runtime-tests/deno && deno test --no-lock -c runtime-tests/deno-jsx/deno.precompile.json runtime-tests/deno-jsx && deno test --no-lock -c runtime-tests/deno-jsx/deno.react-jsx.json runtime-tests/deno-jsx",
+            "description": null,
+            "name": "test:deno"
+          },
+          {
+            "command": "vitest --run --config ./runtime-tests/fastly/vitest.config.ts",
+            "description": null,
+            "name": "test:fastly"
+          },
+          {
+            "command": "vitest --run --config ./runtime-tests/lambda/vitest.config.ts",
+            "description": null,
+            "name": "test:lambda"
+          },
+          {
+            "command": "vitest --run --config ./runtime-tests/lambda-edge/vitest.config.ts",
+            "description": null,
+            "name": "test:lambda-edge"
+          },
+          {
+            "command": "vitest --run --config ./runtime-tests/node/vitest.config.ts",
+            "description": null,
+            "name": "test:node"
+          },
+          {
+            "command": "vitest --watch",
+            "description": null,
+            "name": "test:watch"
+          },
+          {
+            "command": "vitest --run --config ./runtime-tests/workerd/vitest.config.ts",
+            "description": null,
+            "name": "test:workerd"
+          }
+        ]
+      },
+      "path": "./package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    }
+  ],
   "versions": [
     {
       "language": "JavaScript",

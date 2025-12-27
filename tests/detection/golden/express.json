@@ -16,6 +16,61 @@
     }
   ],
   "package_managers": [],
+  "task_runners": [
+    {
+      "commands": {
+        "build": [],
+        "other": [
+          {
+            "command": "make all",
+            "description": null,
+            "name": "all"
+          }
+        ],
+        "test": []
+      },
+      "path": "./benchmarks/Makefile",
+      "source": "Makefile",
+      "task_runner": "Make"
+    },
+    {
+      "commands": {
+        "build": [],
+        "other": [
+          {
+            "command": "eslint .",
+            "description": null,
+            "name": "lint"
+          }
+        ],
+        "test": [
+          {
+            "command": "mocha --require test/support/env --reporter spec --bail --check-leaks test/ test/acceptance/",
+            "description": null,
+            "name": "test"
+          },
+          {
+            "command": "nyc --exclude examples --exclude test --exclude benchmarks --reporter=lcovonly --reporter=text npm test",
+            "description": null,
+            "name": "test-ci"
+          },
+          {
+            "command": "nyc --exclude examples --exclude test --exclude benchmarks --reporter=html --reporter=text npm test",
+            "description": null,
+            "name": "test-cov"
+          },
+          {
+            "command": "mocha --require test/support/env --reporter tap --check-leaks test/ test/acceptance/",
+            "description": null,
+            "name": "test-tap"
+          }
+        ]
+      },
+      "path": "./package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    }
+  ],
   "versions": [
     {
       "language": "JavaScript",

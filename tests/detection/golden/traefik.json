@@ -144,6 +144,401 @@
       ]
     }
   ],
+  "task_runners": [
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "make build-image",
+            "description": null,
+            "name": "build-image"
+          },
+          {
+            "command": "make build-image",
+            "description": null,
+            "name": "build-image"
+          },
+          {
+            "command": "make build-image",
+            "description": null,
+            "name": "build-image"
+          },
+          {
+            "command": "make build-image-dirty",
+            "description": null,
+            "name": "build-image-dirty"
+          },
+          {
+            "command": "make build-image-dirty",
+            "description": null,
+            "name": "build-image-dirty"
+          },
+          {
+            "command": "make build-image-dirty",
+            "description": null,
+            "name": "build-image-dirty"
+          },
+          {
+            "command": "make build-webui-image",
+            "description": null,
+            "name": "build-webui-image"
+          },
+          {
+            "command": "make dist",
+            "description": null,
+            "name": "dist"
+          },
+          {
+            "command": "make release-packages",
+            "description": null,
+            "name": "release-packages"
+          }
+        ],
+        "other": [
+          {
+            "command": "make BIN_NAME",
+            "description": null,
+            "name": "BIN_NAME"
+          },
+          {
+            "command": "make DATE",
+            "description": null,
+            "name": "DATE"
+          },
+          {
+            "command": "make GOARCH",
+            "description": null,
+            "name": "GOARCH"
+          },
+          {
+            "command": "make GOOS",
+            "description": null,
+            "name": "GOOS"
+          },
+          {
+            "command": "make SHA",
+            "description": null,
+            "name": "SHA"
+          },
+          {
+            "command": "make TAG_NAME",
+            "description": null,
+            "name": "TAG_NAME"
+          },
+          {
+            "command": "make VERSION",
+            "description": null,
+            "name": "VERSION"
+          },
+          {
+            "command": "make VERSION_GIT",
+            "description": null,
+            "name": "VERSION_GIT"
+          },
+          {
+            "command": "make binary",
+            "description": null,
+            "name": "binary"
+          },
+          {
+            "command": "make binary-linux-amd64",
+            "description": null,
+            "name": "binary-linux-amd64"
+          },
+          {
+            "command": "make binary-linux-amd64",
+            "description": null,
+            "name": "binary-linux-amd64"
+          },
+          {
+            "command": "make binary-linux-amd64",
+            "description": null,
+            "name": "binary-linux-amd64"
+          },
+          {
+            "command": "make binary-linux-arm64",
+            "description": null,
+            "name": "binary-linux-arm64"
+          },
+          {
+            "command": "make binary-linux-arm64",
+            "description": null,
+            "name": "binary-linux-arm64"
+          },
+          {
+            "command": "make binary-linux-arm64",
+            "description": null,
+            "name": "binary-linux-arm64"
+          },
+          {
+            "command": "make binary-windows-amd64",
+            "description": null,
+            "name": "binary-windows-amd64"
+          },
+          {
+            "command": "make binary-windows-amd64",
+            "description": null,
+            "name": "binary-windows-amd64"
+          },
+          {
+            "command": "make binary-windows-amd64",
+            "description": null,
+            "name": "binary-windows-amd64"
+          },
+          {
+            "command": "make binary-windows-amd64",
+            "description": null,
+            "name": "binary-windows-amd64"
+          },
+          {
+            "command": "make clean-webui",
+            "description": null,
+            "name": "clean-webui"
+          },
+          {
+            "command": "make crossbinary-default",
+            "description": null,
+            "name": "crossbinary-default"
+          },
+          {
+            "command": "make default",
+            "description": null,
+            "name": "default"
+          },
+          {
+            "command": "make docs",
+            "description": null,
+            "name": "docs"
+          },
+          {
+            "command": "make docs-pull-images",
+            "description": null,
+            "name": "docs-pull-images"
+          },
+          {
+            "command": "make docs-serve",
+            "description": null,
+            "name": "docs-serve"
+          },
+          {
+            "command": "make fmt",
+            "description": null,
+            "name": "fmt"
+          },
+          {
+            "command": "make generate",
+            "description": null,
+            "name": "generate"
+          },
+          {
+            "command": "make generate-crd",
+            "description": null,
+            "name": "generate-crd"
+          },
+          {
+            "command": "make generate-genconf",
+            "description": null,
+            "name": "generate-genconf"
+          },
+          {
+            "command": "make generate-webui",
+            "description": null,
+            "name": "generate-webui"
+          },
+          {
+            "command": "make help",
+            "description": null,
+            "name": "help"
+          },
+          {
+            "command": "make lint",
+            "description": null,
+            "name": "lint"
+          },
+          {
+            "command": "make pull-images",
+            "description": null,
+            "name": "pull-images"
+          },
+          {
+            "command": "make validate",
+            "description": null,
+            "name": "validate"
+          },
+          {
+            "command": "make validate-files",
+            "description": null,
+            "name": "validate-files"
+          }
+        ],
+        "test": [
+          {
+            "command": "make test",
+            "description": null,
+            "name": "test"
+          },
+          {
+            "command": "make test-gateway-api-conformance",
+            "description": null,
+            "name": "test-gateway-api-conformance"
+          },
+          {
+            "command": "make test-integration",
+            "description": null,
+            "name": "test-integration"
+          },
+          {
+            "command": "make test-ui-unit",
+            "description": null,
+            "name": "test-ui-unit"
+          },
+          {
+            "command": "make test-unit",
+            "description": null,
+            "name": "test-unit"
+          }
+        ]
+      },
+      "path": "./Makefile",
+      "source": "Makefile",
+      "task_runner": "Make"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "make docs-build",
+            "description": null,
+            "name": "docs-build"
+          }
+        ],
+        "other": [
+          {
+            "command": "make DOCKER_RUN_DOC_MOUNTS",
+            "description": null,
+            "name": "DOCKER_RUN_DOC_MOUNTS"
+          },
+          {
+            "command": "make DOCKER_RUN_DOC_OPTS",
+            "description": null,
+            "name": "DOCKER_RUN_DOC_OPTS"
+          },
+          {
+            "command": "make DOCKER_RUN_DOC_PORT",
+            "description": null,
+            "name": "DOCKER_RUN_DOC_PORT"
+          },
+          {
+            "command": "make SITE_DIR",
+            "description": null,
+            "name": "SITE_DIR"
+          },
+          {
+            "command": "make docs",
+            "description": null,
+            "name": "docs"
+          },
+          {
+            "command": "make docs-clean",
+            "description": null,
+            "name": "docs-clean"
+          },
+          {
+            "command": "make docs-image",
+            "description": null,
+            "name": "docs-image"
+          },
+          {
+            "command": "make docs-lint",
+            "description": null,
+            "name": "docs-lint"
+          },
+          {
+            "command": "make docs-pull-images",
+            "description": null,
+            "name": "docs-pull-images"
+          },
+          {
+            "command": "make docs-serve",
+            "description": null,
+            "name": "docs-serve"
+          },
+          {
+            "command": "make docs-verify",
+            "description": null,
+            "name": "docs-verify"
+          }
+        ],
+        "test": []
+      },
+      "path": "./docs/Makefile",
+      "source": "Makefile",
+      "task_runner": "Make"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "NODE_ENV=production APP_ENV=production yarn build-quasar && yarn transfer spa",
+            "description": null,
+            "name": "build"
+          },
+          {
+            "command": "quasar build",
+            "description": null,
+            "name": "build-quasar"
+          },
+          {
+            "command": "NODE_ENV=production APP_ENV=development yarn build-quasar",
+            "description": null,
+            "name": "build-staging"
+          },
+          {
+            "command": "yarn build",
+            "description": null,
+            "name": "build:nc"
+          }
+        ],
+        "other": [
+          {
+            "command": "APP_ENV=development quasar dev",
+            "description": null,
+            "name": "dev"
+          },
+          {
+            "command": "eslint src/**/*.{js,vue}",
+            "description": null,
+            "name": "lint"
+          },
+          {
+            "command": "node dev/scripts/transfer.js",
+            "description": null,
+            "name": "transfer"
+          }
+        ],
+        "test": [
+          {
+            "command": "echo \"See package.json => scripts for available tests.\" && exit 0",
+            "description": null,
+            "name": "test"
+          },
+          {
+            "command": "vitest",
+            "description": null,
+            "name": "test:unit"
+          },
+          {
+            "command": "vitest run",
+            "description": null,
+            "name": "test:unit:ci"
+          }
+        ]
+      },
+      "path": "./webui/package.json",
+      "source": "PackageJson",
+      "task_runner": "NpmScripts"
+    }
+  ],
   "versions": [
     {
       "language": "Go",
