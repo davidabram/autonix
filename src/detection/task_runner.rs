@@ -230,6 +230,7 @@ impl TaskRunnerFile {
             | TaskRunnerSource::RollupConfigCjs
             | TaskRunnerSource::RollupConfigTs => get_rollup_commands(),
             TaskRunnerSource::TurboJson => extract_turbo_commands(content),
+            TaskRunnerSource::NxJson => extract_nx_commands(content),
             _ => TaskRunnerCommands::default(),
         }
     }
@@ -475,6 +476,46 @@ fn extract_turbo_commands(content: &str) -> TaskRunnerCommands {
         };
 
         commands.add_command(cmd, classify_command(task_name));
+    }
+
+    commands
+}
+
+fn extract_nx_commands(content: &str) -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+
+    let Ok(json) = serde_json::from_str::<JsonValue>(content) else {
+        return commands;
+    };
+
+    let target_defaults = json.get("targetDefaults").and_then(|t| t.as_object());
+
+    if let Some(targets) = target_defaults {
+        for (target_name, _target_config) in targets {
+            let cmd = TaskCommand {
+                name: target_name.clone(),
+                command: format!("nx run {}", target_name),
+                description: None,
+            };
+
+            commands.add_command(cmd, classify_command(target_name));
+        }
+    }
+
+    if commands.test.is_empty()
+        && commands.build.is_empty()
+        && commands.other.is_empty()
+        && let Some(targets) = json.get("targets").and_then(|t| t.as_object())
+    {
+        for (target_name, _target_config) in targets {
+            let cmd = TaskCommand {
+                name: target_name.clone(),
+                command: format!("nx run {}", target_name),
+                description: None,
+            };
+
+            commands.add_command(cmd, classify_command(target_name));
+        }
     }
 
     commands
@@ -1025,6 +1066,136 @@ fmt:
         let detection = TaskRunnerDetection::from(file);
 
         assert_eq!(detection.task_runner, TaskRunner::Turbo);
+        assert_eq!(detection.commands.build.len(), 1);
+        assert_eq!(detection.commands.test.len(), 1);
+        assert_eq!(detection.commands.other.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_nx_commands_target_defaults() {
+        let content = r#"{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    },
+    "e2e": {
+      "cache": true
+    }
+  }
+}"#;
+        let commands = extract_nx_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 2);
+
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "nx run test");
+
+        assert_eq!(commands.build[0].name, "build");
+        assert_eq!(commands.build[0].command, "nx run build");
+
+        assert!(commands.other.iter().any(|c| c.name == "lint"));
+        assert!(commands.other.iter().any(|c| c.name == "e2e"));
+    }
+
+    #[test]
+    fn test_extract_nx_commands_targets() {
+        let content = r#"{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "options": {}
+    },
+    "test": {
+      "executor": "@nx/jest:jest"
+    },
+    "serve": {
+      "executor": "@nx/webpack:dev-server"
+    }
+  }
+}"#;
+        let commands = extract_nx_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "nx run test");
+
+        assert_eq!(commands.build[0].name, "build");
+        assert_eq!(commands.build[0].command, "nx run build");
+
+        let serve_cmd = commands.other.iter().find(|c| c.name == "serve").unwrap();
+        assert_eq!(serve_cmd.command, "nx run serve");
+    }
+
+    #[test]
+    fn test_extract_nx_commands_invalid_json() {
+        let content = "not valid json";
+        let commands = extract_nx_commands(content);
+        assert!(commands.test.is_empty());
+        assert!(commands.build.is_empty());
+        assert!(commands.other.is_empty());
+    }
+
+    #[test]
+    fn test_extract_nx_commands_empty() {
+        let content = r#"{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json"
+}"#;
+        let commands = extract_nx_commands(content);
+        assert!(commands.test.is_empty());
+        assert!(commands.build.is_empty());
+        assert!(commands.other.is_empty());
+    }
+
+    #[test]
+    fn test_try_from_nx_json() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "nx.json",
+            r#"{"targetDefaults": {"build": {}, "test": {}}}"#,
+        );
+        let result = TaskRunnerFile::try_from(path);
+        assert!(result.is_ok());
+        let file = result.unwrap();
+        assert_eq!(file.task_runner, TaskRunner::Nx);
+        assert_eq!(file.source, TaskRunnerSource::NxJson);
+    }
+
+    #[test]
+    fn test_nx_file_to_detection() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "nx.json",
+            r#"{
+  "targetDefaults": {
+    "build": {
+      "cache": true
+    },
+    "test": {
+      "cache": true
+    },
+    "lint": {},
+    "serve": {}
+  }
+}"#,
+        );
+        let file = TaskRunnerFile::try_from(path).unwrap();
+        let detection = TaskRunnerDetection::from(file);
+
+        assert_eq!(detection.task_runner, TaskRunner::Nx);
         assert_eq!(detection.commands.build.len(), 1);
         assert_eq!(detection.commands.test.len(), 1);
         assert_eq!(detection.commands.other.len(), 2);
