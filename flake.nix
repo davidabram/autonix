@@ -158,11 +158,6 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             rustToolchain
-            cargo
-            rustc
-            rust-analyzer
-            clippy
-            rustfmt
 
             bacon
             cargo-watch
