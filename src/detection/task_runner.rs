@@ -229,6 +229,7 @@ impl TaskRunnerFile {
             | TaskRunnerSource::RollupConfigMjs
             | TaskRunnerSource::RollupConfigCjs
             | TaskRunnerSource::RollupConfigTs => get_rollup_commands(),
+            TaskRunnerSource::TurboJson => extract_turbo_commands(content),
             _ => TaskRunnerCommands::default(),
         }
     }
@@ -446,6 +447,35 @@ fn get_rollup_commands() -> TaskRunnerCommands {
         description: Some("Watch and rebuild on changes".to_string()),
     };
     commands.add_command(watch_cmd, CommandCategory::Other);
+
+    commands
+}
+
+fn extract_turbo_commands(content: &str) -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+
+    let Ok(json) = serde_json::from_str::<JsonValue>(content) else {
+        return commands;
+    };
+
+    let tasks = json
+        .get("pipeline")
+        .or_else(|| json.get("tasks"))
+        .and_then(|t| t.as_object());
+
+    let Some(tasks) = tasks else {
+        return commands;
+    };
+
+    for (task_name, _task_config) in tasks {
+        let cmd = TaskCommand {
+            name: task_name.clone(),
+            command: format!("turbo run {}", task_name),
+            description: None,
+        };
+
+        commands.add_command(cmd, classify_command(task_name));
+    }
 
     commands
 }
@@ -889,5 +919,114 @@ fmt:
         assert_eq!(detection.task_runner, TaskRunner::Make);
         assert!(!detection.commands.test.is_empty());
         assert!(!detection.commands.build.is_empty());
+    }
+
+    #[test]
+    fn test_extract_turbo_commands_v1() {
+        let content = r#"{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "outputs": [".next/**"],
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["build"]
+    },
+    "dev": {
+      "cache": false
+    },
+    "lint": {}
+  }
+}"#;
+        let commands = extract_turbo_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 2);
+
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "turbo run test");
+
+        assert_eq!(commands.build[0].name, "build");
+        assert_eq!(commands.build[0].command, "turbo run build");
+
+        let dev_cmd = commands.other.iter().find(|c| c.name == "dev").unwrap();
+        assert_eq!(dev_cmd.command, "turbo run dev");
+
+        let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
+        assert_eq!(lint_cmd.command, "turbo run lint");
+    }
+
+    #[test]
+    fn test_extract_turbo_commands_v2() {
+        let content = r#"{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "outputs": [".next/**"]
+    },
+    "test": {},
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}"#;
+        let commands = extract_turbo_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.build[0].name, "build");
+        assert_eq!(commands.other[0].name, "dev");
+    }
+
+    #[test]
+    fn test_extract_turbo_commands_invalid_json() {
+        let content = "not valid json";
+        let commands = extract_turbo_commands(content);
+        assert!(commands.test.is_empty());
+        assert!(commands.build.is_empty());
+        assert!(commands.other.is_empty());
+    }
+
+    #[test]
+    fn test_try_from_turbo_json() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "turbo.json",
+            r#"{"pipeline": {"build": {}, "test": {}}}"#,
+        );
+        let result = TaskRunnerFile::try_from(path);
+        assert!(result.is_ok());
+        let file = result.unwrap();
+        assert_eq!(file.task_runner, TaskRunner::Turbo);
+        assert_eq!(file.source, TaskRunnerSource::TurboJson);
+    }
+
+    #[test]
+    fn test_turbo_file_to_detection() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "turbo.json",
+            r#"{
+  "pipeline": {
+    "build": {},
+    "test": {},
+    "dev": {},
+    "lint": {}
+  }
+}"#,
+        );
+        let file = TaskRunnerFile::try_from(path).unwrap();
+        let detection = TaskRunnerDetection::from(file);
+
+        assert_eq!(detection.task_runner, TaskRunner::Turbo);
+        assert_eq!(detection.commands.build.len(), 1);
+        assert_eq!(detection.commands.test.len(), 1);
+        assert_eq!(detection.commands.other.len(), 2);
     }
 }
