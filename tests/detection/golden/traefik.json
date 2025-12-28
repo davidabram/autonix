@@ -1,14 +1,60 @@
 {
   "languages": [
     {
-      "language": "Go",
+      "language": "Python",
       "sources": [
         {
           "Strong": {
-            "path": "./go.mod",
-            "source": "GoMod"
+            "path": "./docs/requirements.txt",
+            "source": "RequirementsTxt"
+          }
+        }
+      ]
+    },
+    {
+      "language": "JavaScript",
+      "sources": [
+        {
+          "Weak": "CjsFile"
+        },
+        {
+          "Strong": {
+            "path": "./webui/jsconfig.json",
+            "source": "JsConfig"
           }
         },
+        {
+          "Strong": {
+            "path": "./webui/.nvmrc",
+            "source": "NvmrcFile"
+          }
+        },
+        {
+          "Weak": "JsFile"
+        },
+        {
+          "Strong": {
+            "path": "./webui/package.json",
+            "source": "PackageJson"
+          }
+        },
+        {
+          "Weak": "MjsFile"
+        },
+        {
+          "Strong": {
+            "path": "./webui/yarn.lock",
+            "source": "YarnLock"
+          }
+        },
+        {
+          "Weak": "TsFile"
+        }
+      ]
+    },
+    {
+      "language": "Go",
+      "sources": [
         {
           "Strong": {
             "path": "./go.sum",
@@ -16,8 +62,11 @@
           }
         },
         {
+          "Weak": "GoFile"
+        },
+        {
           "Strong": {
-            "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+            "path": "./go.mod",
             "source": "GoMod"
           }
         },
@@ -28,89 +77,86 @@
           }
         },
         {
-          "Weak": "GoFile"
+          "Strong": {
+            "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+            "source": "GoMod"
+          }
         }
       ]
-    },
+    }
+  ],
+  "versions": [
     {
       "language": "JavaScript",
-      "sources": [
+      "versions": [
         {
-          "Strong": {
-            "path": "./webui/.nvmrc",
-            "source": "NvmrcFile"
-          }
+          "raw": "20.11.0",
+          "parsed": {
+            "major": 20,
+            "minor": 11,
+            "patch": 0,
+            "pre_release": null,
+            "build": null,
+            "constraint": "Exact"
+          },
+          "source": "NvmrcFile",
+          "path": "./webui/.nvmrc"
         },
         {
-          "Strong": {
-            "path": "./webui/jsconfig.json",
-            "source": "JsConfig"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./webui/package.json",
-            "source": "PackageJson"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./webui/yarn.lock",
-            "source": "YarnLock"
-          }
-        },
-        {
-          "Weak": "CjsFile"
-        },
-        {
-          "Weak": "JsFile"
-        },
-        {
-          "Weak": "MjsFile"
-        },
-        {
-          "Weak": "TsFile"
+          "raw": "^22 || ^20 || ^18 || ^16",
+          "parsed": {
+            "major": 22,
+            "minor": null,
+            "patch": null,
+            "pre_release": null,
+            "build": null,
+            "constraint": "Caret"
+          },
+          "source": "PackageJsonEnginesNode",
+          "path": "./webui/package.json"
         }
       ]
     },
     {
-      "language": "Python",
-      "sources": [
+      "language": "Go",
+      "versions": [
         {
-          "Strong": {
-            "path": "./docs/requirements.txt",
-            "source": "RequirementsTxt"
-          }
+          "raw": "1.23.0",
+          "parsed": {
+            "major": 1,
+            "minor": 23,
+            "patch": 0,
+            "pre_release": null,
+            "build": null,
+            "constraint": "Exact"
+          },
+          "source": "GoModDirective",
+          "path": "./go.mod"
+        },
+        {
+          "raw": "1.23.0",
+          "parsed": {
+            "major": 1,
+            "minor": 23,
+            "patch": 0,
+            "pre_release": null,
+            "build": null,
+            "constraint": "Exact"
+          },
+          "source": "GoModDirective",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod"
         }
       ]
     }
   ],
   "package_managers": [
     {
-      "language": "Go",
+      "language": "Python",
       "package_managers": [
         {
-          "package_manager": "Go",
-          "path": "./go.mod",
-          "source": "GoMod",
-          "version": null
-        },
-        {
-          "package_manager": "Go",
-          "path": "./go.sum",
-          "source": "GoSum",
-          "version": null
-        },
-        {
-          "package_manager": "Go",
-          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
-          "source": "GoMod",
-          "version": null
-        },
-        {
-          "package_manager": "Go",
-          "path": "./pkg/plugins/fixtures/withoutsocket/go.sum",
-          "source": "GoSum",
+          "package_manager": "Pip",
+          "source": "RequirementsTxt",
+          "path": "./docs/requirements.txt",
           "version": null
         }
       ]
@@ -120,25 +166,43 @@
       "package_managers": [
         {
           "package_manager": "Yarn",
-          "path": "./webui/package.json",
           "source": "PackageJson",
+          "path": "./webui/package.json",
           "version": "1.22.22"
         },
         {
           "package_manager": "Yarn",
-          "path": "./webui/yarn.lock",
           "source": "YarnLock",
+          "path": "./webui/yarn.lock",
           "version": null
         }
       ]
     },
     {
-      "language": "Python",
+      "language": "Go",
       "package_managers": [
         {
-          "package_manager": "Pip",
-          "path": "./docs/requirements.txt",
-          "source": "RequirementsTxt",
+          "package_manager": "Go",
+          "source": "GoSum",
+          "path": "./go.sum",
+          "version": null
+        },
+        {
+          "package_manager": "Go",
+          "source": "GoMod",
+          "path": "./go.mod",
+          "version": null
+        },
+        {
+          "package_manager": "Go",
+          "source": "GoSum",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.sum",
+          "version": null
+        },
+        {
+          "package_manager": "Go",
+          "source": "GoMod",
+          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
           "version": null
         }
       ]
@@ -146,537 +210,736 @@
   ],
   "task_runners": [
     {
-      "commands": {
-        "build": [
-          {
-            "command": "make build-image",
-            "description": null,
-            "name": "build-image"
-          },
-          {
-            "command": "make build-image",
-            "description": null,
-            "name": "build-image"
-          },
-          {
-            "command": "make build-image",
-            "description": null,
-            "name": "build-image"
-          },
-          {
-            "command": "make build-image-dirty",
-            "description": null,
-            "name": "build-image-dirty"
-          },
-          {
-            "command": "make build-image-dirty",
-            "description": null,
-            "name": "build-image-dirty"
-          },
-          {
-            "command": "make build-image-dirty",
-            "description": null,
-            "name": "build-image-dirty"
-          },
-          {
-            "command": "make build-webui-image",
-            "description": null,
-            "name": "build-webui-image"
-          },
-          {
-            "command": "make dist",
-            "description": null,
-            "name": "dist"
-          },
-          {
-            "command": "make release-packages",
-            "description": null,
-            "name": "release-packages"
-          }
-        ],
-        "other": [
-          {
-            "command": "make BIN_NAME",
-            "description": null,
-            "name": "BIN_NAME"
-          },
-          {
-            "command": "make DATE",
-            "description": null,
-            "name": "DATE"
-          },
-          {
-            "command": "make GOARCH",
-            "description": null,
-            "name": "GOARCH"
-          },
-          {
-            "command": "make GOOS",
-            "description": null,
-            "name": "GOOS"
-          },
-          {
-            "command": "make SHA",
-            "description": null,
-            "name": "SHA"
-          },
-          {
-            "command": "make TAG_NAME",
-            "description": null,
-            "name": "TAG_NAME"
-          },
-          {
-            "command": "make VERSION",
-            "description": null,
-            "name": "VERSION"
-          },
-          {
-            "command": "make VERSION_GIT",
-            "description": null,
-            "name": "VERSION_GIT"
-          },
-          {
-            "command": "make binary",
-            "description": null,
-            "name": "binary"
-          },
-          {
-            "command": "make binary-linux-amd64",
-            "description": null,
-            "name": "binary-linux-amd64"
-          },
-          {
-            "command": "make binary-linux-amd64",
-            "description": null,
-            "name": "binary-linux-amd64"
-          },
-          {
-            "command": "make binary-linux-amd64",
-            "description": null,
-            "name": "binary-linux-amd64"
-          },
-          {
-            "command": "make binary-linux-arm64",
-            "description": null,
-            "name": "binary-linux-arm64"
-          },
-          {
-            "command": "make binary-linux-arm64",
-            "description": null,
-            "name": "binary-linux-arm64"
-          },
-          {
-            "command": "make binary-linux-arm64",
-            "description": null,
-            "name": "binary-linux-arm64"
-          },
-          {
-            "command": "make binary-windows-amd64",
-            "description": null,
-            "name": "binary-windows-amd64"
-          },
-          {
-            "command": "make binary-windows-amd64",
-            "description": null,
-            "name": "binary-windows-amd64"
-          },
-          {
-            "command": "make binary-windows-amd64",
-            "description": null,
-            "name": "binary-windows-amd64"
-          },
-          {
-            "command": "make binary-windows-amd64",
-            "description": null,
-            "name": "binary-windows-amd64"
-          },
-          {
-            "command": "make clean-webui",
-            "description": null,
-            "name": "clean-webui"
-          },
-          {
-            "command": "make crossbinary-default",
-            "description": null,
-            "name": "crossbinary-default"
-          },
-          {
-            "command": "make default",
-            "description": null,
-            "name": "default"
-          },
-          {
-            "command": "make docs",
-            "description": null,
-            "name": "docs"
-          },
-          {
-            "command": "make docs-pull-images",
-            "description": null,
-            "name": "docs-pull-images"
-          },
-          {
-            "command": "make docs-serve",
-            "description": null,
-            "name": "docs-serve"
-          },
-          {
-            "command": "make fmt",
-            "description": null,
-            "name": "fmt"
-          },
-          {
-            "command": "make generate",
-            "description": null,
-            "name": "generate"
-          },
-          {
-            "command": "make generate-crd",
-            "description": null,
-            "name": "generate-crd"
-          },
-          {
-            "command": "make generate-genconf",
-            "description": null,
-            "name": "generate-genconf"
-          },
-          {
-            "command": "make generate-webui",
-            "description": null,
-            "name": "generate-webui"
-          },
-          {
-            "command": "make help",
-            "description": null,
-            "name": "help"
-          },
-          {
-            "command": "make lint",
-            "description": null,
-            "name": "lint"
-          },
-          {
-            "command": "make pull-images",
-            "description": null,
-            "name": "pull-images"
-          },
-          {
-            "command": "make validate",
-            "description": null,
-            "name": "validate"
-          },
-          {
-            "command": "make validate-files",
-            "description": null,
-            "name": "validate-files"
-          }
-        ],
-        "test": [
-          {
-            "command": "make test",
-            "description": null,
-            "name": "test"
-          },
-          {
-            "command": "make test-gateway-api-conformance",
-            "description": null,
-            "name": "test-gateway-api-conformance"
-          },
-          {
-            "command": "make test-integration",
-            "description": null,
-            "name": "test-integration"
-          },
-          {
-            "command": "make test-ui-unit",
-            "description": null,
-            "name": "test-ui-unit"
-          },
-          {
-            "command": "make test-unit",
-            "description": null,
-            "name": "test-unit"
-          }
-        ]
-      },
+      "task_runner": "Make",
+      "source": "Makefile",
       "path": "./Makefile",
-      "source": "Makefile",
-      "task_runner": "Make"
-    },
-    {
       "commands": {
-        "build": [
-          {
-            "command": "make docs-build",
-            "description": null,
-            "name": "docs-build"
-          }
-        ],
-        "other": [
-          {
-            "command": "make DOCKER_RUN_DOC_MOUNTS",
-            "description": null,
-            "name": "DOCKER_RUN_DOC_MOUNTS"
-          },
-          {
-            "command": "make DOCKER_RUN_DOC_OPTS",
-            "description": null,
-            "name": "DOCKER_RUN_DOC_OPTS"
-          },
-          {
-            "command": "make DOCKER_RUN_DOC_PORT",
-            "description": null,
-            "name": "DOCKER_RUN_DOC_PORT"
-          },
-          {
-            "command": "make SITE_DIR",
-            "description": null,
-            "name": "SITE_DIR"
-          },
-          {
-            "command": "make docs",
-            "description": null,
-            "name": "docs"
-          },
-          {
-            "command": "make docs-clean",
-            "description": null,
-            "name": "docs-clean"
-          },
-          {
-            "command": "make docs-image",
-            "description": null,
-            "name": "docs-image"
-          },
-          {
-            "command": "make docs-lint",
-            "description": null,
-            "name": "docs-lint"
-          },
-          {
-            "command": "make docs-pull-images",
-            "description": null,
-            "name": "docs-pull-images"
-          },
-          {
-            "command": "make docs-serve",
-            "description": null,
-            "name": "docs-serve"
-          },
-          {
-            "command": "make docs-verify",
-            "description": null,
-            "name": "docs-verify"
-          }
-        ],
-        "test": []
-      },
-      "path": "./docs/Makefile",
-      "source": "Makefile",
-      "task_runner": "Make"
-    },
-    {
-      "commands": {
-        "build": [
-          {
-            "command": "go build",
-            "description": "Build project",
-            "name": "build"
-          }
-        ],
-        "other": [
-          {
-            "command": "go fmt ./...",
-            "description": "Format code",
-            "name": "fmt"
-          },
-          {
-            "command": "go run .",
-            "description": "Run project",
-            "name": "run"
-          },
-          {
-            "command": "go vet ./...",
-            "description": "Examine code for issues",
-            "name": "vet"
-          }
-        ],
         "test": [
           {
-            "command": "go test ./...",
-            "description": "Run tests",
-            "name": "test"
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "make test"
+            },
+            "description": null
+          },
+          {
+            "name": "test-unit",
+            "executable": {
+              "type": "Direct",
+              "command": "make test-unit"
+            },
+            "description": null
+          },
+          {
+            "name": "test-integration",
+            "executable": {
+              "type": "Direct",
+              "command": "make test-integration"
+            },
+            "description": null
+          },
+          {
+            "name": "test-gateway-api-conformance",
+            "executable": {
+              "type": "Direct",
+              "command": "make test-gateway-api-conformance"
+            },
+            "description": null
+          },
+          {
+            "name": "test-ui-unit",
+            "executable": {
+              "type": "Direct",
+              "command": "make test-ui-unit"
+            },
+            "description": null
+          }
+        ],
+        "build": [
+          {
+            "name": "dist",
+            "executable": {
+              "type": "Direct",
+              "command": "make dist"
+            },
+            "description": null
+          },
+          {
+            "name": "build-webui-image",
+            "executable": {
+              "type": "Direct",
+              "command": "make build-webui-image"
+            },
+            "description": null
+          },
+          {
+            "name": "build-image",
+            "executable": {
+              "type": "Direct",
+              "command": "make build-image"
+            },
+            "description": null
+          },
+          {
+            "name": "build-image",
+            "executable": {
+              "type": "Direct",
+              "command": "make build-image"
+            },
+            "description": null
+          },
+          {
+            "name": "build-image",
+            "executable": {
+              "type": "Direct",
+              "command": "make build-image"
+            },
+            "description": null
+          },
+          {
+            "name": "build-image-dirty",
+            "executable": {
+              "type": "Direct",
+              "command": "make build-image-dirty"
+            },
+            "description": null
+          },
+          {
+            "name": "build-image-dirty",
+            "executable": {
+              "type": "Direct",
+              "command": "make build-image-dirty"
+            },
+            "description": null
+          },
+          {
+            "name": "build-image-dirty",
+            "executable": {
+              "type": "Direct",
+              "command": "make build-image-dirty"
+            },
+            "description": null
+          },
+          {
+            "name": "release-packages",
+            "executable": {
+              "type": "Direct",
+              "command": "make release-packages"
+            },
+            "description": null
+          }
+        ],
+        "other": [
+          {
+            "name": "TAG_NAME",
+            "executable": {
+              "type": "Direct",
+              "command": "make TAG_NAME"
+            },
+            "description": null
+          },
+          {
+            "name": "SHA",
+            "executable": {
+              "type": "Direct",
+              "command": "make SHA"
+            },
+            "description": null
+          },
+          {
+            "name": "VERSION_GIT",
+            "executable": {
+              "type": "Direct",
+              "command": "make VERSION_GIT"
+            },
+            "description": null
+          },
+          {
+            "name": "VERSION",
+            "executable": {
+              "type": "Direct",
+              "command": "make VERSION"
+            },
+            "description": null
+          },
+          {
+            "name": "BIN_NAME",
+            "executable": {
+              "type": "Direct",
+              "command": "make BIN_NAME"
+            },
+            "description": null
+          },
+          {
+            "name": "DATE",
+            "executable": {
+              "type": "Direct",
+              "command": "make DATE"
+            },
+            "description": null
+          },
+          {
+            "name": "GOOS",
+            "executable": {
+              "type": "Direct",
+              "command": "make GOOS"
+            },
+            "description": null
+          },
+          {
+            "name": "GOARCH",
+            "executable": {
+              "type": "Direct",
+              "command": "make GOARCH"
+            },
+            "description": null
+          },
+          {
+            "name": "default",
+            "executable": {
+              "type": "Direct",
+              "command": "make default"
+            },
+            "description": null
+          },
+          {
+            "name": "clean-webui",
+            "executable": {
+              "type": "Direct",
+              "command": "make clean-webui"
+            },
+            "description": null
+          },
+          {
+            "name": "generate-webui",
+            "executable": {
+              "type": "Direct",
+              "command": "make generate-webui"
+            },
+            "description": null
+          },
+          {
+            "name": "generate",
+            "executable": {
+              "type": "Direct",
+              "command": "make generate"
+            },
+            "description": null
+          },
+          {
+            "name": "binary",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-linux-arm64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-linux-arm64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-linux-arm64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-linux-arm64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-linux-arm64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-linux-arm64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-linux-amd64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-linux-amd64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-linux-amd64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-linux-amd64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-linux-amd64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-linux-amd64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-windows-amd64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-windows-amd64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-windows-amd64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-windows-amd64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-windows-amd64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-windows-amd64"
+            },
+            "description": null
+          },
+          {
+            "name": "binary-windows-amd64",
+            "executable": {
+              "type": "Direct",
+              "command": "make binary-windows-amd64"
+            },
+            "description": null
+          },
+          {
+            "name": "crossbinary-default",
+            "executable": {
+              "type": "Direct",
+              "command": "make crossbinary-default"
+            },
+            "description": null
+          },
+          {
+            "name": "pull-images",
+            "executable": {
+              "type": "Direct",
+              "command": "make pull-images"
+            },
+            "description": null
+          },
+          {
+            "name": "lint",
+            "executable": {
+              "type": "Direct",
+              "command": "make lint"
+            },
+            "description": null
+          },
+          {
+            "name": "validate-files",
+            "executable": {
+              "type": "Direct",
+              "command": "make validate-files"
+            },
+            "description": null
+          },
+          {
+            "name": "validate",
+            "executable": {
+              "type": "Direct",
+              "command": "make validate"
+            },
+            "description": null
+          },
+          {
+            "name": "docs",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-serve",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-serve"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-pull-images",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-pull-images"
+            },
+            "description": null
+          },
+          {
+            "name": "generate-crd",
+            "executable": {
+              "type": "Direct",
+              "command": "make generate-crd"
+            },
+            "description": null
+          },
+          {
+            "name": "generate-genconf",
+            "executable": {
+              "type": "Direct",
+              "command": "make generate-genconf"
+            },
+            "description": null
+          },
+          {
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "make fmt"
+            },
+            "description": null
+          },
+          {
+            "name": "help",
+            "executable": {
+              "type": "Direct",
+              "command": "make help"
+            },
+            "description": null
           }
         ]
-      },
+      }
+    },
+    {
+      "task_runner": "GoTask",
+      "source": "GoMod",
       "path": "./go.mod",
-      "source": "GoMod",
-      "task_runner": "GoTask"
-    },
-    {
       "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "go test ./..."
+            },
+            "description": "Run tests"
+          }
+        ],
         "build": [
           {
-            "command": "go build",
-            "description": "Build project",
-            "name": "build"
+            "name": "build",
+            "executable": {
+              "type": "Direct",
+              "command": "go build"
+            },
+            "description": "Build project"
           }
         ],
         "other": [
           {
-            "command": "go fmt ./...",
-            "description": "Format code",
-            "name": "fmt"
+            "name": "run",
+            "executable": {
+              "type": "Direct",
+              "command": "go run ."
+            },
+            "description": "Run project"
           },
           {
-            "command": "go run .",
-            "description": "Run project",
-            "name": "run"
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "go fmt ./..."
+            },
+            "description": "Format code"
           },
           {
-            "command": "go vet ./...",
-            "description": "Examine code for issues",
-            "name": "vet"
-          }
-        ],
-        "test": [
-          {
-            "command": "go test ./...",
-            "description": "Run tests",
-            "name": "test"
+            "name": "vet",
+            "executable": {
+              "type": "Direct",
+              "command": "go vet ./..."
+            },
+            "description": "Examine code for issues"
           }
         ]
-      },
-      "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
-      "source": "GoMod",
-      "task_runner": "GoTask"
+      }
     },
     {
+      "task_runner": "Make",
+      "source": "Makefile",
+      "path": "./docs/Makefile",
       "commands": {
+        "test": [],
         "build": [
           {
-            "command": "NODE_ENV=production APP_ENV=production yarn build-quasar && yarn transfer spa",
-            "description": null,
-            "name": "build"
-          },
-          {
-            "command": "quasar build",
-            "description": null,
-            "name": "build-quasar"
-          },
-          {
-            "command": "NODE_ENV=production APP_ENV=development yarn build-quasar",
-            "description": null,
-            "name": "build-staging"
-          },
-          {
-            "command": "yarn build",
-            "description": null,
-            "name": "build:nc"
+            "name": "docs-build",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-build"
+            },
+            "description": null
           }
         ],
         "other": [
           {
-            "command": "APP_ENV=development quasar dev",
-            "description": null,
-            "name": "dev"
+            "name": "SITE_DIR",
+            "executable": {
+              "type": "Direct",
+              "command": "make SITE_DIR"
+            },
+            "description": null
           },
           {
-            "command": "eslint src/**/*.{js,vue}",
-            "description": null,
-            "name": "lint"
+            "name": "DOCKER_RUN_DOC_PORT",
+            "executable": {
+              "type": "Direct",
+              "command": "make DOCKER_RUN_DOC_PORT"
+            },
+            "description": null
           },
           {
-            "command": "node dev/scripts/transfer.js",
-            "description": null,
-            "name": "transfer"
-          }
-        ],
-        "test": [
-          {
-            "command": "echo \"See package.json => scripts for available tests.\" && exit 0",
-            "description": null,
-            "name": "test"
+            "name": "DOCKER_RUN_DOC_MOUNTS",
+            "executable": {
+              "type": "Direct",
+              "command": "make DOCKER_RUN_DOC_MOUNTS"
+            },
+            "description": null
           },
           {
-            "command": "vitest",
-            "description": null,
-            "name": "test:unit"
+            "name": "DOCKER_RUN_DOC_OPTS",
+            "executable": {
+              "type": "Direct",
+              "command": "make DOCKER_RUN_DOC_OPTS"
+            },
+            "description": null
           },
           {
-            "command": "vitest run",
-            "description": null,
-            "name": "test:unit:ci"
+            "name": "docs",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-serve",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-serve"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-pull-images",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-pull-images"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-image",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-image"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-verify",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-verify"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-lint",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-lint"
+            },
+            "description": null
+          },
+          {
+            "name": "docs-clean",
+            "executable": {
+              "type": "Direct",
+              "command": "make docs-clean"
+            },
+            "description": null
           }
         ]
-      },
-      "path": "./webui/package.json",
+      }
+    },
+    {
+      "task_runner": "NpmScripts",
       "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    }
-  ],
-  "versions": [
-    {
-      "language": "Go",
-      "versions": [
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "Exact",
-            "major": 1,
-            "minor": 23,
-            "patch": 0,
-            "pre_release": null
+      "path": "./webui/package.json",
+      "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test",
+              "script_body": "echo \"See package.json => scripts for available tests.\" && exit 0",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
           },
-          "path": "./go.mod",
-          "raw": "1.23.0",
-          "source": "GoModDirective"
-        },
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "Exact",
-            "major": 1,
-            "minor": 23,
-            "patch": 0,
-            "pre_release": null
+          {
+            "name": "test:unit",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:unit",
+              "script_body": "vitest",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
           },
-          "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
-          "raw": "1.23.0",
-          "source": "GoModDirective"
-        }
-      ]
+          {
+            "name": "test:unit:ci",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:unit:ci",
+              "script_body": "vitest run",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          }
+        ],
+        "build": [
+          {
+            "name": "build",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "build",
+              "script_body": "NODE_ENV=production APP_ENV=production yarn build-quasar && yarn transfer spa",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "build-quasar",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "build-quasar",
+              "script_body": "quasar build",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "build-staging",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "build-staging",
+              "script_body": "NODE_ENV=production APP_ENV=development yarn build-quasar",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "build:nc",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "build:nc",
+              "script_body": "yarn build",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          }
+        ],
+        "other": [
+          {
+            "name": "dev",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "dev",
+              "script_body": "APP_ENV=development quasar dev",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "lint",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "lint",
+              "script_body": "eslint src/**/*.{js,vue}",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "transfer",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "transfer",
+              "script_body": "node dev/scripts/transfer.js",
+              "package_json_path": "./webui/package.json"
+            },
+            "description": null
+          }
+        ]
+      }
     },
     {
-      "language": "JavaScript",
-      "versions": [
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "Exact",
-            "major": 20,
-            "minor": 11,
-            "patch": 0,
-            "pre_release": null
+      "task_runner": "GoTask",
+      "source": "GoMod",
+      "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+      "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "go test ./..."
+            },
+            "description": "Run tests"
+          }
+        ],
+        "build": [
+          {
+            "name": "build",
+            "executable": {
+              "type": "Direct",
+              "command": "go build"
+            },
+            "description": "Build project"
+          }
+        ],
+        "other": [
+          {
+            "name": "run",
+            "executable": {
+              "type": "Direct",
+              "command": "go run ."
+            },
+            "description": "Run project"
           },
-          "path": "./webui/.nvmrc",
-          "raw": "20.11.0",
-          "source": "NvmrcFile"
-        },
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "Caret",
-            "major": 22,
-            "minor": null,
-            "patch": null,
-            "pre_release": null
+          {
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "go fmt ./..."
+            },
+            "description": "Format code"
           },
-          "path": "./webui/package.json",
-          "raw": "^22 || ^20 || ^18 || ^16",
-          "source": "PackageJsonEnginesNode"
-        }
-      ]
+          {
+            "name": "vet",
+            "executable": {
+              "type": "Direct",
+              "command": "go vet ./..."
+            },
+            "description": "Examine code for issues"
+          }
+        ]
+      }
     }
   ]
 }

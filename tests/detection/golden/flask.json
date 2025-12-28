@@ -5,6 +5,15 @@
       "sources": [
         {
           "Strong": {
+            "path": "./pyproject.toml",
+            "source": "PyprojectToml"
+          }
+        },
+        {
+          "Weak": "PyFile"
+        },
+        {
+          "Strong": {
             "path": "./examples/celery/pyproject.toml",
             "source": "PyprojectToml"
           }
@@ -26,15 +35,26 @@
             "path": "./examples/tutorial/pyproject.toml",
             "source": "PyprojectToml"
           }
-        },
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "language": "Python",
+      "versions": [
         {
-          "Strong": {
-            "path": "./pyproject.toml",
-            "source": "PyprojectToml"
-          }
-        },
-        {
-          "Weak": "PyFile"
+          "raw": ">=3.9",
+          "parsed": {
+            "major": 3,
+            "minor": 9,
+            "patch": null,
+            "pre_release": null,
+            "build": null,
+            "constraint": "GreaterOrEqual"
+          },
+          "source": "PyprojectRequiresPython",
+          "path": "./pyproject.toml"
         }
       ]
     }
@@ -45,32 +65,32 @@
       "package_managers": [
         {
           "package_manager": "Pip",
-          "path": "./examples/celery/pyproject.toml",
           "source": "PyprojectToml",
-          "version": null
-        },
-        {
-          "package_manager": "Pip",
-          "path": "./examples/celery/requirements.txt",
-          "source": "RequirementsTxt",
-          "version": null
-        },
-        {
-          "package_manager": "Pip",
-          "path": "./examples/javascript/pyproject.toml",
-          "source": "PyprojectToml",
-          "version": null
-        },
-        {
-          "package_manager": "Pip",
-          "path": "./examples/tutorial/pyproject.toml",
-          "source": "PyprojectToml",
-          "version": null
-        },
-        {
-          "package_manager": "Pip",
           "path": "./pyproject.toml",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
           "source": "PyprojectToml",
+          "path": "./examples/celery/pyproject.toml",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
+          "source": "RequirementsTxt",
+          "path": "./examples/celery/requirements.txt",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
+          "source": "PyprojectToml",
+          "path": "./examples/javascript/pyproject.toml",
+          "version": null
+        },
+        {
+          "package_manager": "Pip",
+          "source": "PyprojectToml",
+          "path": "./examples/tutorial/pyproject.toml",
           "version": null
         }
       ]
@@ -78,97 +98,101 @@
   ],
   "task_runners": [
     {
+      "task_runner": "Tox",
+      "source": "ToxIni",
+      "path": "./tox.ini",
       "commands": {
-        "build": [],
-        "other": [
-          {
-            "command": "make help",
-            "description": null,
-            "name": "help"
-          }
-        ],
-        "test": []
-      },
-      "path": "./docs/Makefile",
-      "source": "Makefile",
-      "task_runner": "Make"
-    },
-    {
-      "commands": {
-        "build": [],
-        "other": [],
-        "test": []
-      },
-      "path": "./examples/celery/src/task_app/tasks.py",
-      "source": "TasksPy",
-      "task_runner": "Invoke"
-    },
-    {
-      "commands": {
-        "build": [],
-        "other": [
-          {
-            "command": "tox -e docs",
-            "description": null,
-            "name": "docs"
-          },
-          {
-            "command": "tox -e style",
-            "description": null,
-            "name": "style"
-          },
-          {
-            "command": "tox -e typing",
-            "description": null,
-            "name": "typing"
-          },
-          {
-            "command": "tox -e update-actions",
-            "description": null,
-            "name": "update-actions"
-          },
-          {
-            "command": "tox -e update-pre_commit",
-            "description": null,
-            "name": "update-pre_commit"
-          },
-          {
-            "command": "tox -e update-requirements",
-            "description": null,
-            "name": "update-requirements"
-          }
-        ],
         "test": [
           {
-            "command": "tox",
-            "description": null,
-            "name": "default"
+            "name": "default",
+            "executable": {
+              "type": "Direct",
+              "command": "tox"
+            },
+            "description": null
+          }
+        ],
+        "build": [],
+        "other": [
+          {
+            "name": "style",
+            "executable": {
+              "type": "Direct",
+              "command": "tox -e style"
+            },
+            "description": null
+          },
+          {
+            "name": "typing",
+            "executable": {
+              "type": "Direct",
+              "command": "tox -e typing"
+            },
+            "description": null
+          },
+          {
+            "name": "docs",
+            "executable": {
+              "type": "Direct",
+              "command": "tox -e docs"
+            },
+            "description": null
+          },
+          {
+            "name": "update-actions",
+            "executable": {
+              "type": "Direct",
+              "command": "tox -e update-actions"
+            },
+            "description": null
+          },
+          {
+            "name": "update-pre_commit",
+            "executable": {
+              "type": "Direct",
+              "command": "tox -e update-pre_commit"
+            },
+            "description": null
+          },
+          {
+            "name": "update-requirements",
+            "executable": {
+              "type": "Direct",
+              "command": "tox -e update-requirements"
+            },
+            "description": null
           }
         ]
-      },
-      "path": "./tox.ini",
-      "source": "ToxIni",
-      "task_runner": "Tox"
-    }
-  ],
-  "versions": [
+      }
+    },
     {
-      "language": "Python",
-      "versions": [
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "GreaterOrEqual",
-            "major": 3,
-            "minor": 9,
-            "patch": null,
-            "pre_release": null
-          },
-          "path": "./pyproject.toml",
-          "raw": ">=3.9",
-          "source": "PyprojectRequiresPython"
-        }
-      ]
+      "task_runner": "Make",
+      "source": "Makefile",
+      "path": "./docs/Makefile",
+      "commands": {
+        "test": [],
+        "build": [],
+        "other": [
+          {
+            "name": "help",
+            "executable": {
+              "type": "Direct",
+              "command": "make help"
+            },
+            "description": null
+          }
+        ]
+      }
+    },
+    {
+      "task_runner": "Invoke",
+      "source": "TasksPy",
+      "path": "./examples/celery/src/task_app/tasks.py",
+      "commands": {
+        "test": [],
+        "build": [],
+        "other": []
+      }
     }
   ]
 }

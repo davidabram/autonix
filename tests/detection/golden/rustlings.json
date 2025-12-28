@@ -5,15 +5,18 @@
       "sources": [
         {
           "Strong": {
+            "path": "./Cargo.toml",
+            "source": "CargoToml"
+          }
+        },
+        {
+          "Strong": {
             "path": "./Cargo.lock",
             "source": "CargoLock"
           }
         },
         {
-          "Strong": {
-            "path": "./Cargo.toml",
-            "source": "CargoToml"
-          }
+          "Weak": "RsFile"
         },
         {
           "Strong": {
@@ -32,45 +35,43 @@
             "path": "./tests/test_exercises/dev/Cargo.toml",
             "source": "CargoToml"
           }
-        },
-        {
-          "Weak": "RsFile"
         }
       ]
     }
   ],
+  "versions": [],
   "package_managers": [
     {
       "language": "Rust",
       "package_managers": [
         {
           "package_manager": "Cargo",
-          "path": "./Cargo.lock",
-          "source": "CargoLock",
-          "version": null
-        },
-        {
-          "package_manager": "Cargo",
+          "source": "CargoToml",
           "path": "./Cargo.toml",
-          "source": "CargoToml",
           "version": null
         },
         {
           "package_manager": "Cargo",
+          "source": "CargoLock",
+          "path": "./Cargo.lock",
+          "version": null
+        },
+        {
+          "package_manager": "Cargo",
+          "source": "CargoToml",
           "path": "./dev/Cargo.toml",
-          "source": "CargoToml",
           "version": null
         },
         {
           "package_manager": "Cargo",
+          "source": "CargoToml",
           "path": "./rustlings-macros/Cargo.toml",
-          "source": "CargoToml",
           "version": null
         },
         {
           "package_manager": "Cargo",
-          "path": "./tests/test_exercises/dev/Cargo.toml",
           "source": "CargoToml",
+          "path": "./tests/test_exercises/dev/Cargo.toml",
           "version": null
         }
       ]
@@ -78,177 +79,248 @@
   ],
   "task_runners": [
     {
-      "commands": {
-        "build": [
-          {
-            "command": "cargo build",
-            "description": "Build project",
-            "name": "build"
-          },
-          {
-            "command": "cargo build --release",
-            "description": "Build optimized release",
-            "name": "build-release"
-          }
-        ],
-        "other": [
-          {
-            "command": "cargo check",
-            "description": "Check without building",
-            "name": "check"
-          },
-          {
-            "command": "cargo clippy",
-            "description": "Run linter",
-            "name": "clippy"
-          },
-          {
-            "command": "cargo fmt",
-            "description": "Format code",
-            "name": "fmt"
-          }
-        ],
-        "test": [
-          {
-            "command": "cargo test",
-            "description": "Run tests",
-            "name": "test"
-          }
-        ]
-      },
+      "task_runner": "Cargo",
+      "source": "CargoToml",
       "path": "./Cargo.toml",
-      "source": "CargoToml",
-      "task_runner": "Cargo"
-    },
-    {
       "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo test"
+            },
+            "description": "Run tests"
+          }
+        ],
         "build": [
           {
-            "command": "cargo build",
-            "description": "Build project",
-            "name": "build"
+            "name": "build",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build"
+            },
+            "description": "Build project"
           },
           {
-            "command": "cargo build --release",
-            "description": "Build optimized release",
-            "name": "build-release"
+            "name": "build-release",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build --release"
+            },
+            "description": "Build optimized release"
           }
         ],
         "other": [
           {
-            "command": "cargo check",
-            "description": "Check without building",
-            "name": "check"
+            "name": "check",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo check"
+            },
+            "description": "Check without building"
           },
           {
-            "command": "cargo clippy",
-            "description": "Run linter",
-            "name": "clippy"
+            "name": "clippy",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo clippy"
+            },
+            "description": "Run linter"
           },
           {
-            "command": "cargo fmt",
-            "description": "Format code",
-            "name": "fmt"
-          }
-        ],
-        "test": [
-          {
-            "command": "cargo test",
-            "description": "Run tests",
-            "name": "test"
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo fmt"
+            },
+            "description": "Format code"
           }
         ]
-      },
+      }
+    },
+    {
+      "task_runner": "Cargo",
+      "source": "CargoToml",
       "path": "./dev/Cargo.toml",
-      "source": "CargoToml",
-      "task_runner": "Cargo"
-    },
-    {
       "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo test"
+            },
+            "description": "Run tests"
+          }
+        ],
         "build": [
           {
-            "command": "cargo build",
-            "description": "Build project",
-            "name": "build"
+            "name": "build",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build"
+            },
+            "description": "Build project"
           },
           {
-            "command": "cargo build --release",
-            "description": "Build optimized release",
-            "name": "build-release"
+            "name": "build-release",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build --release"
+            },
+            "description": "Build optimized release"
           }
         ],
         "other": [
           {
-            "command": "cargo check",
-            "description": "Check without building",
-            "name": "check"
+            "name": "check",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo check"
+            },
+            "description": "Check without building"
           },
           {
-            "command": "cargo clippy",
-            "description": "Run linter",
-            "name": "clippy"
+            "name": "clippy",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo clippy"
+            },
+            "description": "Run linter"
           },
           {
-            "command": "cargo fmt",
-            "description": "Format code",
-            "name": "fmt"
-          }
-        ],
-        "test": [
-          {
-            "command": "cargo test",
-            "description": "Run tests",
-            "name": "test"
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo fmt"
+            },
+            "description": "Format code"
           }
         ]
-      },
+      }
+    },
+    {
+      "task_runner": "Cargo",
+      "source": "CargoToml",
       "path": "./rustlings-macros/Cargo.toml",
-      "source": "CargoToml",
-      "task_runner": "Cargo"
-    },
-    {
       "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo test"
+            },
+            "description": "Run tests"
+          }
+        ],
         "build": [
           {
-            "command": "cargo build",
-            "description": "Build project",
-            "name": "build"
+            "name": "build",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build"
+            },
+            "description": "Build project"
           },
           {
-            "command": "cargo build --release",
-            "description": "Build optimized release",
-            "name": "build-release"
+            "name": "build-release",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build --release"
+            },
+            "description": "Build optimized release"
           }
         ],
         "other": [
           {
-            "command": "cargo check",
-            "description": "Check without building",
-            "name": "check"
+            "name": "check",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo check"
+            },
+            "description": "Check without building"
           },
           {
-            "command": "cargo clippy",
-            "description": "Run linter",
-            "name": "clippy"
+            "name": "clippy",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo clippy"
+            },
+            "description": "Run linter"
           },
           {
-            "command": "cargo fmt",
-            "description": "Format code",
-            "name": "fmt"
-          }
-        ],
-        "test": [
-          {
-            "command": "cargo test",
-            "description": "Run tests",
-            "name": "test"
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo fmt"
+            },
+            "description": "Format code"
           }
         ]
-      },
-      "path": "./tests/test_exercises/dev/Cargo.toml",
+      }
+    },
+    {
+      "task_runner": "Cargo",
       "source": "CargoToml",
-      "task_runner": "Cargo"
+      "path": "./tests/test_exercises/dev/Cargo.toml",
+      "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo test"
+            },
+            "description": "Run tests"
+          }
+        ],
+        "build": [
+          {
+            "name": "build",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build"
+            },
+            "description": "Build project"
+          },
+          {
+            "name": "build-release",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo build --release"
+            },
+            "description": "Build optimized release"
+          }
+        ],
+        "other": [
+          {
+            "name": "check",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo check"
+            },
+            "description": "Check without building"
+          },
+          {
+            "name": "clippy",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo clippy"
+            },
+            "description": "Run linter"
+          },
+          {
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "cargo fmt"
+            },
+            "description": "Format code"
+          }
+        ]
+      }
     }
-  ],
-  "versions": []
+  ]
 }

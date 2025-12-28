@@ -2,13 +2,26 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
-use std::{fs, path::PathBuf};
+use std::{fs, path::{Path, PathBuf}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CommandCategory {
     Test,
     Build,
     Other,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(tag = "type")]
+pub enum CommandExecutable {
+    Direct {
+        command: String,
+    },
+    PackageManagerScript {
+        script_name: String,
+        script_body: String,
+        package_json_path: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Hash)]
@@ -85,7 +98,7 @@ pub enum TaskRunnerSource {
 #[derive(Debug, Clone, Serialize)]
 pub struct TaskCommand {
     pub name: String,
-    pub command: String,
+    pub executable: CommandExecutable,
     pub description: Option<String>,
 }
 
@@ -230,7 +243,7 @@ impl TaskRunnerFile {
         match self.source {
             TaskRunnerSource::Makefile => extract_makefile_commands(content),
             TaskRunnerSource::Justfile => extract_justfile_commands(content),
-            TaskRunnerSource::PackageJson => extract_npm_commands(content),
+            TaskRunnerSource::PackageJson => extract_npm_commands(content, &self.path),
             TaskRunnerSource::TaskfileYml | TaskRunnerSource::TaskfileYaml => {
                 extract_taskfile_commands(content)
             }
@@ -291,7 +304,9 @@ fn extract_makefile_commands(content: &str) -> TaskRunnerCommands {
 
             let cmd = TaskCommand {
                 name: target.to_string(),
-                command: format!("make {}", target),
+                executable: CommandExecutable::Direct {
+                    command: format!("make {}", target),
+                },
                 description: None,
             };
 
@@ -313,7 +328,9 @@ fn extract_justfile_commands(content: &str) -> TaskRunnerCommands {
 
             let cmd = TaskCommand {
                 name: recipe.to_string(),
-                command: format!("just {}", recipe),
+                executable: CommandExecutable::Direct {
+                    command: format!("just {}", recipe),
+                },
                 description: None,
             };
 
@@ -324,7 +341,7 @@ fn extract_justfile_commands(content: &str) -> TaskRunnerCommands {
     commands
 }
 
-fn extract_npm_commands(content: &str) -> TaskRunnerCommands {
+fn extract_npm_commands(content: &str, package_json_path: &Path) -> TaskRunnerCommands {
     let mut commands = TaskRunnerCommands::default();
 
     let Ok(json) = serde_json::from_str::<JsonValue>(content) else {
@@ -342,7 +359,11 @@ fn extract_npm_commands(content: &str) -> TaskRunnerCommands {
 
         let cmd = TaskCommand {
             name: name.clone(),
-            command: command_str.to_string(),
+            executable: CommandExecutable::PackageManagerScript {
+                script_name: name.clone(),
+                script_body: command_str.to_string(),
+                package_json_path: package_json_path.to_path_buf(),
+            },
             description: None,
         };
 
@@ -364,7 +385,9 @@ fn extract_taskfile_commands(content: &str) -> TaskRunnerCommands {
             if let Some(name) = task_name.as_str() {
                 let cmd = TaskCommand {
                     name: name.to_string(),
-                    command: format!("task {}", name),
+                    executable: CommandExecutable::Direct {
+                        command: format!("task {}", name),
+                    },
                     description: None,
                 };
 
@@ -381,21 +404,27 @@ fn get_vite_commands() -> TaskRunnerCommands {
 
     let dev_cmd = TaskCommand {
         name: "dev".to_string(),
-        command: "vite".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "vite".to_string(),
+        },
         description: Some("Start dev server".to_string()),
     };
     commands.add_command(dev_cmd, CommandCategory::Other);
 
     let build_cmd = TaskCommand {
         name: "build".to_string(),
-        command: "vite build".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "vite build".to_string(),
+        },
         description: Some("Build for production".to_string()),
     };
     commands.add_command(build_cmd, CommandCategory::Build);
 
     let preview_cmd = TaskCommand {
         name: "preview".to_string(),
-        command: "vite preview".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "vite preview".to_string(),
+        },
         description: Some("Preview production build".to_string()),
     };
     commands.add_command(preview_cmd, CommandCategory::Other);
@@ -408,21 +437,27 @@ fn get_webpack_commands() -> TaskRunnerCommands {
 
     let build_cmd = TaskCommand {
         name: "build".to_string(),
-        command: "webpack build".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "webpack build".to_string(),
+        },
         description: Some("Build for production".to_string()),
     };
     commands.add_command(build_cmd, CommandCategory::Build);
 
     let serve_cmd = TaskCommand {
         name: "serve".to_string(),
-        command: "webpack serve".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "webpack serve".to_string(),
+        },
         description: Some("Start dev server".to_string()),
     };
     commands.add_command(serve_cmd, CommandCategory::Other);
 
     let watch_cmd = TaskCommand {
         name: "watch".to_string(),
-        command: "webpack watch".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "webpack watch".to_string(),
+        },
         description: Some("Watch for file changes".to_string()),
     };
     commands.add_command(watch_cmd, CommandCategory::Other);
@@ -435,21 +470,27 @@ fn get_rspack_commands() -> TaskRunnerCommands {
 
     let dev_cmd = TaskCommand {
         name: "dev".to_string(),
-        command: "rspack dev".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "rspack dev".to_string(),
+        },
         description: Some("Start dev server".to_string()),
     };
     commands.add_command(dev_cmd, CommandCategory::Other);
 
     let build_cmd = TaskCommand {
         name: "build".to_string(),
-        command: "rspack build".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "rspack build".to_string(),
+        },
         description: Some("Build for production".to_string()),
     };
     commands.add_command(build_cmd, CommandCategory::Build);
 
     let preview_cmd = TaskCommand {
         name: "preview".to_string(),
-        command: "rspack preview".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "rspack preview".to_string(),
+        },
         description: Some("Preview production build".to_string()),
     };
     commands.add_command(preview_cmd, CommandCategory::Other);
@@ -462,14 +503,18 @@ fn get_rollup_commands() -> TaskRunnerCommands {
 
     let build_cmd = TaskCommand {
         name: "build".to_string(),
-        command: "rollup -c".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "rollup -c".to_string(),
+        },
         description: Some("Build bundle".to_string()),
     };
     commands.add_command(build_cmd, CommandCategory::Build);
 
     let watch_cmd = TaskCommand {
         name: "watch".to_string(),
-        command: "rollup -c -w".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "rollup -c -w".to_string(),
+        },
         description: Some("Watch and rebuild on changes".to_string()),
     };
     commands.add_command(watch_cmd, CommandCategory::Other);
@@ -482,42 +527,54 @@ fn get_cargo_commands() -> TaskRunnerCommands {
 
     let test_cmd = TaskCommand {
         name: "test".to_string(),
-        command: "cargo test".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "cargo test".to_string(),
+        },
         description: Some("Run tests".to_string()),
     };
     commands.add_command(test_cmd, CommandCategory::Test);
 
     let build_cmd = TaskCommand {
         name: "build".to_string(),
-        command: "cargo build".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "cargo build".to_string(),
+        },
         description: Some("Build project".to_string()),
     };
     commands.add_command(build_cmd, CommandCategory::Build);
 
     let build_release_cmd = TaskCommand {
         name: "build-release".to_string(),
-        command: "cargo build --release".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "cargo build --release".to_string(),
+        },
         description: Some("Build optimized release".to_string()),
     };
     commands.add_command(build_release_cmd, CommandCategory::Build);
 
     let check_cmd = TaskCommand {
         name: "check".to_string(),
-        command: "cargo check".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "cargo check".to_string(),
+        },
         description: Some("Check without building".to_string()),
     };
     commands.add_command(check_cmd, CommandCategory::Other);
 
     let clippy_cmd = TaskCommand {
         name: "clippy".to_string(),
-        command: "cargo clippy".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "cargo clippy".to_string(),
+        },
         description: Some("Run linter".to_string()),
     };
     commands.add_command(clippy_cmd, CommandCategory::Other);
 
     let fmt_cmd = TaskCommand {
         name: "fmt".to_string(),
-        command: "cargo fmt".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "cargo fmt".to_string(),
+        },
         description: Some("Format code".to_string()),
     };
     commands.add_command(fmt_cmd, CommandCategory::Other);
@@ -530,35 +587,45 @@ fn get_go_commands() -> TaskRunnerCommands {
 
     let test_cmd = TaskCommand {
         name: "test".to_string(),
-        command: "go test ./...".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "go test ./...".to_string(),
+        },
         description: Some("Run tests".to_string()),
     };
     commands.add_command(test_cmd, CommandCategory::Test);
 
     let build_cmd = TaskCommand {
         name: "build".to_string(),
-        command: "go build".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "go build".to_string(),
+        },
         description: Some("Build project".to_string()),
     };
     commands.add_command(build_cmd, CommandCategory::Build);
 
     let run_cmd = TaskCommand {
         name: "run".to_string(),
-        command: "go run .".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "go run .".to_string(),
+        },
         description: Some("Run project".to_string()),
     };
     commands.add_command(run_cmd, CommandCategory::Other);
 
     let fmt_cmd = TaskCommand {
         name: "fmt".to_string(),
-        command: "go fmt ./...".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "go fmt ./...".to_string(),
+        },
         description: Some("Format code".to_string()),
     };
     commands.add_command(fmt_cmd, CommandCategory::Other);
 
     let vet_cmd = TaskCommand {
         name: "vet".to_string(),
-        command: "go vet ./...".to_string(),
+        executable: CommandExecutable::Direct {
+            command: "go vet ./...".to_string(),
+        },
         description: Some("Examine code for issues".to_string()),
     };
     commands.add_command(vet_cmd, CommandCategory::Other);
@@ -585,7 +652,9 @@ fn extract_turbo_commands(content: &str) -> TaskRunnerCommands {
     for (task_name, _task_config) in tasks {
         let cmd = TaskCommand {
             name: task_name.clone(),
-            command: format!("turbo run {}", task_name),
+            executable: CommandExecutable::Direct {
+                command: format!("turbo run {}", task_name),
+            },
             description: None,
         };
 
@@ -608,7 +677,9 @@ fn extract_nx_commands(content: &str) -> TaskRunnerCommands {
         for (target_name, _target_config) in targets {
             let cmd = TaskCommand {
                 name: target_name.clone(),
-                command: format!("nx run {}", target_name),
+                executable: CommandExecutable::Direct {
+                    command: format!("nx run {}", target_name),
+                },
                 description: None,
             };
 
@@ -624,7 +695,9 @@ fn extract_nx_commands(content: &str) -> TaskRunnerCommands {
         for (target_name, _target_config) in targets {
             let cmd = TaskCommand {
                 name: target_name.clone(),
-                command: format!("nx run {}", target_name),
+                executable: CommandExecutable::Direct {
+                    command: format!("nx run {}", target_name),
+                },
                 description: None,
             };
 
@@ -685,10 +758,12 @@ fn extract_tox_commands(content: &str) -> TaskRunnerCommands {
             if !commands_found.is_empty() {
                 let cmd = TaskCommand {
                     name: env_name.to_string(),
-                    command: if env_name == "default" {
-                        "tox".to_string()
-                    } else {
-                        format!("tox -e {}", env_name)
+                    executable: CommandExecutable::Direct {
+                        command: if env_name == "default" {
+                            "tox".to_string()
+                        } else {
+                            format!("tox -e {}", env_name)
+                        },
                     },
                     description: None,
                 };
@@ -709,7 +784,9 @@ fn extract_tox_commands(content: &str) -> TaskRunnerCommands {
         commands.add_command(
             TaskCommand {
                 name: "default".to_string(),
-                command: "tox".to_string(),
+                executable: CommandExecutable::Direct {
+                    command: "tox".to_string(),
+                },
                 description: Some("Run all tox environments".to_string()),
             },
             CommandCategory::Test,
@@ -775,7 +852,9 @@ fn extract_nox_commands(content: &str) -> TaskRunnerCommands {
                 commands.add_command(
                     TaskCommand {
                         name: session_name.to_string(),
-                        command: format!("nox -s {}", session_name),
+                        executable: CommandExecutable::Direct {
+                            command: format!("nox -s {}", session_name),
+                        },
                         description: None,
                     },
                     category,
@@ -788,7 +867,9 @@ fn extract_nox_commands(content: &str) -> TaskRunnerCommands {
         commands.add_command(
             TaskCommand {
                 name: "default".to_string(),
-                command: "nox".to_string(),
+                executable: CommandExecutable::Direct {
+                    command: "nox".to_string(),
+                },
                 description: Some("Run all nox sessions".to_string()),
             },
             CommandCategory::Test,
@@ -822,7 +903,9 @@ fn extract_invoke_commands(content: &str) -> TaskRunnerCommands {
                 commands.add_command(
                     TaskCommand {
                         name: task_name.clone(),
-                        command: format!("invoke {}", task_name),
+                        executable: CommandExecutable::Direct {
+                            command: format!("invoke {}", task_name),
+                        },
                         description: None,
                     },
                     classify_command(&task_name),
@@ -847,7 +930,9 @@ fn extract_invoke_yaml_commands(content: &str) -> TaskRunnerCommands {
                 commands.add_command(
                     TaskCommand {
                         name: name.to_string(),
-                        command: format!("invoke {}", name),
+                        executable: CommandExecutable::Direct {
+                            command: format!("invoke {}", name),
+                        },
                         description: None,
                     },
                     classify_command(name),
@@ -1010,7 +1095,10 @@ fmt:
         assert_eq!(commands.build.len(), 1);
         assert_eq!(commands.other.len(), 2);
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "make test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "make test"
+        ));
     }
 
     #[test]
@@ -1024,12 +1112,33 @@ fmt:
     "format": "prettier --write ."
   }
 }"#;
-        let commands = extract_npm_commands(content);
+        let package_json_path = PathBuf::from("/test/package.json");
+        let commands = extract_npm_commands(content, &package_json_path);
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.build.len(), 1);
         assert_eq!(commands.other.len(), 3);
+
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "jest");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::PackageManagerScript {
+                script_name,
+                script_body,
+                package_json_path: _
+            } if script_name == "test" && script_body == "jest"
+        ));
+        assert_eq!(commands.test[0].description, None);
+
+        assert_eq!(commands.build[0].name, "build");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::PackageManagerScript {
+                script_name,
+                script_body,
+                package_json_path: _
+            } if script_name == "build" && script_body == "vite build"
+        ));
+        assert_eq!(commands.build[0].description, None);
     }
 
     #[test]
@@ -1055,18 +1164,27 @@ fmt:
         assert_eq!(commands.test.len(), 0);
 
         assert_eq!(commands.build[0].name, "build");
-        assert_eq!(commands.build[0].command, "vite build");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::Direct { command } if command == "vite build"
+        ));
         assert_eq!(
             commands.build[0].description,
             Some("Build for production".to_string())
         );
 
         let dev_cmd = commands.other.iter().find(|c| c.name == "dev").unwrap();
-        assert_eq!(dev_cmd.command, "vite");
+        assert!(matches!(
+            &dev_cmd.executable,
+            CommandExecutable::Direct { command } if command == "vite"
+        ));
         assert_eq!(dev_cmd.description, Some("Start dev server".to_string()));
 
         let preview_cmd = commands.other.iter().find(|c| c.name == "preview").unwrap();
-        assert_eq!(preview_cmd.command, "vite preview");
+        assert!(matches!(
+            &preview_cmd.executable,
+            CommandExecutable::Direct { command } if command == "vite preview"
+        ));
         assert_eq!(
             preview_cmd.description,
             Some("Preview production build".to_string())
@@ -1104,18 +1222,27 @@ fmt:
         assert_eq!(commands.test.len(), 0);
 
         assert_eq!(commands.build[0].name, "build");
-        assert_eq!(commands.build[0].command, "webpack build");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::Direct { command } if command == "webpack build"
+        ));
         assert_eq!(
             commands.build[0].description,
             Some("Build for production".to_string())
         );
 
         let serve_cmd = commands.other.iter().find(|c| c.name == "serve").unwrap();
-        assert_eq!(serve_cmd.command, "webpack serve");
+        assert!(matches!(
+            &serve_cmd.executable,
+            CommandExecutable::Direct { command } if command == "webpack serve"
+        ));
         assert_eq!(serve_cmd.description, Some("Start dev server".to_string()));
 
         let watch_cmd = commands.other.iter().find(|c| c.name == "watch").unwrap();
-        assert_eq!(watch_cmd.command, "webpack watch");
+        assert!(matches!(
+            &watch_cmd.executable,
+            CommandExecutable::Direct { command } if command == "webpack watch"
+        ));
         assert_eq!(
             watch_cmd.description,
             Some("Watch for file changes".to_string())
@@ -1130,18 +1257,27 @@ fmt:
         assert_eq!(commands.test.len(), 0);
 
         assert_eq!(commands.build[0].name, "build");
-        assert_eq!(commands.build[0].command, "rspack build");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::Direct { command } if command == "rspack build"
+        ));
         assert_eq!(
             commands.build[0].description,
             Some("Build for production".to_string())
         );
 
         let dev_cmd = commands.other.iter().find(|c| c.name == "dev").unwrap();
-        assert_eq!(dev_cmd.command, "rspack dev");
+        assert!(matches!(
+            &dev_cmd.executable,
+            CommandExecutable::Direct { command } if command == "rspack dev"
+        ));
         assert_eq!(dev_cmd.description, Some("Start dev server".to_string()));
 
         let preview_cmd = commands.other.iter().find(|c| c.name == "preview").unwrap();
-        assert_eq!(preview_cmd.command, "rspack preview");
+        assert!(matches!(
+            &preview_cmd.executable,
+            CommandExecutable::Direct { command } if command == "rspack preview"
+        ));
         assert_eq!(
             preview_cmd.description,
             Some("Preview production build".to_string())
@@ -1226,14 +1362,20 @@ fmt:
         assert_eq!(commands.test.len(), 0);
 
         assert_eq!(commands.build[0].name, "build");
-        assert_eq!(commands.build[0].command, "rollup -c");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::Direct { command } if command == "rollup -c"
+        ));
         assert_eq!(
             commands.build[0].description,
             Some("Build bundle".to_string())
         );
 
         let watch_cmd = commands.other.iter().find(|c| c.name == "watch").unwrap();
-        assert_eq!(watch_cmd.command, "rollup -c -w");
+        assert!(matches!(
+            &watch_cmd.executable,
+            CommandExecutable::Direct { command } if command == "rollup -c -w"
+        ));
         assert_eq!(
             watch_cmd.description,
             Some("Watch and rebuild on changes".to_string())
@@ -1324,16 +1466,28 @@ fmt:
         assert_eq!(commands.other.len(), 2);
 
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "turbo run test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "turbo run test"
+        ));
 
         assert_eq!(commands.build[0].name, "build");
-        assert_eq!(commands.build[0].command, "turbo run build");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::Direct { command } if command == "turbo run build"
+        ));
 
         let dev_cmd = commands.other.iter().find(|c| c.name == "dev").unwrap();
-        assert_eq!(dev_cmd.command, "turbo run dev");
+        assert!(matches!(
+            &dev_cmd.executable,
+            CommandExecutable::Direct { command } if command == "turbo run dev"
+        ));
 
         let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
-        assert_eq!(lint_cmd.command, "turbo run lint");
+        assert!(matches!(
+            &lint_cmd.executable,
+            CommandExecutable::Direct { command } if command == "turbo run lint"
+        ));
     }
 
     #[test]
@@ -1435,10 +1589,16 @@ fmt:
         assert_eq!(commands.other.len(), 2);
 
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "nx run test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "nx run test"
+        ));
 
         assert_eq!(commands.build[0].name, "build");
-        assert_eq!(commands.build[0].command, "nx run build");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::Direct { command } if command == "nx run build"
+        ));
 
         assert!(commands.other.iter().any(|c| c.name == "lint"));
         assert!(commands.other.iter().any(|c| c.name == "e2e"));
@@ -1467,13 +1627,22 @@ fmt:
         assert_eq!(commands.other.len(), 1);
 
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "nx run test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "nx run test"
+        ));
 
         assert_eq!(commands.build[0].name, "build");
-        assert_eq!(commands.build[0].command, "nx run build");
+        assert!(matches!(
+            &commands.build[0].executable,
+            CommandExecutable::Direct { command } if command == "nx run build"
+        ));
 
         let serve_cmd = commands.other.iter().find(|c| c.name == "serve").unwrap();
-        assert_eq!(serve_cmd.command, "nx run serve");
+        assert!(matches!(
+            &serve_cmd.executable,
+            CommandExecutable::Direct { command } if command == "nx run serve"
+        ));
     }
 
     #[test]
@@ -1548,7 +1717,10 @@ commands = pytest tests/
         let commands = extract_tox_commands(content);
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.test[0].name, "default");
-        assert_eq!(commands.test[0].command, "tox");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "tox"
+        ));
         assert_eq!(commands.test[0].description, None);
     }
 
@@ -1571,15 +1743,24 @@ commands =
         assert_eq!(commands.other.len(), 1);
 
         let py39_cmd = commands.test.iter().find(|c| c.name == "py39").unwrap();
-        assert_eq!(py39_cmd.command, "tox -e py39");
+        assert!(matches!(
+            &py39_cmd.executable,
+            CommandExecutable::Direct { command } if command == "tox -e py39"
+        ));
         assert_eq!(py39_cmd.description, None);
 
         let py310_cmd = commands.test.iter().find(|c| c.name == "py310").unwrap();
-        assert_eq!(py310_cmd.command, "tox -e py310");
+        assert!(matches!(
+            &py310_cmd.executable,
+            CommandExecutable::Direct { command } if command == "tox -e py310"
+        ));
         assert_eq!(py310_cmd.description, None);
 
         let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
-        assert_eq!(lint_cmd.command, "tox -e lint");
+        assert!(matches!(
+            &lint_cmd.executable,
+            CommandExecutable::Direct { command } if command == "tox -e lint"
+        ));
         assert_eq!(lint_cmd.description, None);
     }
 
@@ -1610,7 +1791,10 @@ deps = pytest
         let commands = extract_tox_commands(content);
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.test[0].name, "default");
-        assert_eq!(commands.test[0].command, "tox");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "tox"
+        ));
     }
 
     #[test]
@@ -1644,11 +1828,17 @@ commands =
         assert_eq!(commands.build.len(), 2);
 
         let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
-        assert_eq!(build_cmd.command, "tox -e build");
+        assert!(matches!(
+            &build_cmd.executable,
+            CommandExecutable::Direct { command } if command == "tox -e build"
+        ));
         assert_eq!(build_cmd.description, None);
 
         let package_cmd = commands.build.iter().find(|c| c.name == "package").unwrap();
-        assert_eq!(package_cmd.command, "tox -e package");
+        assert!(matches!(
+            &package_cmd.executable,
+            CommandExecutable::Direct { command } if command == "tox -e package"
+        ));
         assert_eq!(package_cmd.description, None);
     }
 
@@ -1699,21 +1889,30 @@ commands = flake8 src/
                 .commands
                 .test
                 .iter()
-                .any(|c| c.name == "py39" && c.command == "tox -e py39")
+                .any(|c| c.name == "py39" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "tox -e py39"
+                ))
         );
         assert!(
             detection
                 .commands
                 .test
                 .iter()
-                .any(|c| c.name == "py310" && c.command == "tox -e py310")
+                .any(|c| c.name == "py310" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "tox -e py310"
+                ))
         );
         assert!(
             detection
                 .commands
                 .other
                 .iter()
-                .any(|c| c.name == "lint" && c.command == "tox -e lint")
+                .any(|c| c.name == "lint" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "tox -e lint"
+                ))
         );
     }
 
@@ -1730,7 +1929,10 @@ def test(session):
         let commands = extract_nox_commands(content);
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "nox -s test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "nox -s test"
+        ));
     }
 
     #[test]
@@ -1756,13 +1958,22 @@ def build(session):
         assert_eq!(commands.other.len(), 1);
 
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "nox -s test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "nox -s test"
+        ));
 
         let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
-        assert_eq!(build_cmd.command, "nox -s build");
+        assert!(matches!(
+            &build_cmd.executable,
+            CommandExecutable::Direct { command } if command == "nox -s build"
+        ));
 
         let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
-        assert_eq!(lint_cmd.command, "nox -s lint");
+        assert!(matches!(
+            &lint_cmd.executable,
+            CommandExecutable::Direct { command } if command == "nox -s lint"
+        ));
     }
 
     #[test]
@@ -1785,13 +1996,19 @@ def integration_tests(session):
             commands
                 .test
                 .iter()
-                .any(|c| c.name == "unit-tests" && c.command == "nox -s unit-tests")
+                .any(|c| c.name == "unit-tests" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s unit-tests"
+                ))
         );
         assert!(
             commands
                 .test
                 .iter()
-                .any(|c| c.name == "integration-tests" && c.command == "nox -s integration-tests")
+                .any(|c| c.name == "integration-tests" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s integration-tests"
+                ))
         );
     }
 
@@ -1819,19 +2036,28 @@ def py311(session):
             commands
                 .test
                 .iter()
-                .any(|c| c.name == "py39" && c.command == "nox -s py39")
+                .any(|c| c.name == "py39" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s py39"
+                ))
         );
         assert!(
             commands
                 .test
                 .iter()
-                .any(|c| c.name == "py310" && c.command == "nox -s py310")
+                .any(|c| c.name == "py310" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s py310"
+                ))
         );
         assert!(
             commands
                 .test
                 .iter()
-                .any(|c| c.name == "py311" && c.command == "nox -s py311")
+                .any(|c| c.name == "py311" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s py311"
+                ))
         );
     }
 
@@ -1866,7 +2092,10 @@ import nox
         let commands = extract_nox_commands(content);
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.test[0].name, "default");
-        assert_eq!(commands.test[0].command, "nox");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "nox"
+        ));
     }
 
     #[test]
@@ -1890,13 +2119,19 @@ def run_coverage(session):
             commands
                 .test
                 .iter()
-                .any(|c| c.name == "tests" && c.command == "nox -s tests")
+                .any(|c| c.name == "tests" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s tests"
+                ))
         );
         assert!(
             commands
                 .other
                 .iter()
-                .any(|c| c.name == "coverage" && c.command == "nox -s coverage")
+                .any(|c| c.name == "coverage" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s coverage"
+                ))
         );
     }
 
@@ -1916,7 +2151,10 @@ def test_all_pythons(session):
         let commands = extract_nox_commands(content);
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.test[0].name, "test-all");
-        assert_eq!(commands.test[0].command, "nox -s test-all");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "nox -s test-all"
+        ));
     }
 
     #[test]
@@ -1996,21 +2234,30 @@ def build(session):
                 .commands
                 .test
                 .iter()
-                .any(|c| c.name == "test" && c.command == "nox -s test")
+                .any(|c| c.name == "test" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s test"
+                ))
         );
         assert!(
             detection
                 .commands
                 .build
                 .iter()
-                .any(|c| c.name == "build" && c.command == "nox -s build")
+                .any(|c| c.name == "build" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s build"
+                ))
         );
         assert!(
             detection
                 .commands
                 .other
                 .iter()
-                .any(|c| c.name == "lint" && c.command == "nox -s lint")
+                .any(|c| c.name == "lint" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "nox -s lint"
+                ))
         );
     }
 
@@ -2026,7 +2273,10 @@ def test(c):
         let commands = extract_invoke_commands(content);
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "invoke test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "invoke test"
+        ));
     }
 
     #[test]
@@ -2056,16 +2306,28 @@ def clean(c):
         assert_eq!(commands.other.len(), 2);
 
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "invoke test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "invoke test"
+        ));
 
         let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
-        assert_eq!(build_cmd.command, "invoke build");
+        assert!(matches!(
+            &build_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke build"
+        ));
 
         let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
-        assert_eq!(lint_cmd.command, "invoke lint");
+        assert!(matches!(
+            &lint_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke lint"
+        ));
 
         let clean_cmd = commands.other.iter().find(|c| c.name == "clean").unwrap();
-        assert_eq!(clean_cmd.command, "invoke clean");
+        assert!(matches!(
+            &clean_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke clean"
+        ));
     }
 
     #[test]
@@ -2086,7 +2348,10 @@ def clean(c):
         assert_eq!(commands.other.len(), 1);
 
         let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
-        assert_eq!(build_cmd.command, "invoke build");
+        assert!(matches!(
+            &build_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke build"
+        ));
     }
 
     #[test]
@@ -2122,14 +2387,20 @@ def coverage(c):
         assert_eq!(commands.other.len(), 1);
 
         let test_cmd = commands.test.iter().find(|c| c.name == "test").unwrap();
-        assert_eq!(test_cmd.command, "invoke test");
+        assert!(matches!(
+            &test_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke test"
+        ));
 
         let coverage_cmd = commands
             .other
             .iter()
             .find(|c| c.name == "coverage")
             .unwrap();
-        assert_eq!(coverage_cmd.command, "invoke coverage");
+        assert!(matches!(
+            &coverage_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke coverage"
+        ));
     }
 
     #[test]
@@ -2149,13 +2420,22 @@ tasks:
         assert_eq!(commands.other.len(), 1);
 
         assert_eq!(commands.test[0].name, "test");
-        assert_eq!(commands.test[0].command, "invoke test");
+        assert!(matches!(
+            &commands.test[0].executable,
+            CommandExecutable::Direct { command } if command == "invoke test"
+        ));
 
         let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
-        assert_eq!(build_cmd.command, "invoke build");
+        assert!(matches!(
+            &build_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke build"
+        ));
 
         let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
-        assert_eq!(lint_cmd.command, "invoke lint");
+        assert!(matches!(
+            &lint_cmd.executable,
+            CommandExecutable::Direct { command } if command == "invoke lint"
+        ));
     }
 
     #[test]
@@ -2254,21 +2534,30 @@ def build(c):
                 .commands
                 .test
                 .iter()
-                .any(|c| c.name == "test" && c.command == "invoke test")
+                .any(|c| c.name == "test" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "invoke test"
+                ))
         );
         assert!(
             detection
                 .commands
                 .build
                 .iter()
-                .any(|c| c.name == "build" && c.command == "invoke build")
+                .any(|c| c.name == "build" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "invoke build"
+                ))
         );
         assert!(
             detection
                 .commands
                 .other
                 .iter()
-                .any(|c| c.name == "lint" && c.command == "invoke lint")
+                .any(|c| c.name == "lint" && matches!(
+                    &c.executable,
+                    CommandExecutable::Direct { command } if command == "invoke lint"
+                ))
         );
     }
 }

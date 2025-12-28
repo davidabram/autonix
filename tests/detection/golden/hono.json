@@ -5,38 +5,83 @@
       "sources": [
         {
           "Strong": {
-            "path": "./benchmarks/handle-event/package.json",
-            "source": "PackageJson"
+            "path": "./bun.lockb",
+            "source": "BunLockb"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/handle-event/yarn.lock",
+            "path": "./package.json",
+            "source": "PackageJson"
+          }
+        },
+        {
+          "Weak": "MjsFile"
+        },
+        {
+          "Weak": "TsFile"
+        },
+        {
+          "Strong": {
+            "path": "./yarn.lock",
             "source": "YarnLock"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/jsx/package.json",
+            "path": "./tsconfig.json",
+            "source": "TsConfig"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./perf-measures/tsconfig.json",
+            "source": "TsConfig"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./runtime-tests/tsconfig.json",
+            "source": "TsConfig"
+          }
+        },
+        {
+          "Weak": "TsxFile"
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/utils/package.json",
             "source": "PackageJson"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/jsx/src/react-jsx/tsconfig.json",
-            "source": "TsConfig"
+            "path": "./benchmarks/routers/package.json",
+            "source": "PackageJson"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/jsx/tsconfig.json",
-            "source": "TsConfig"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/jsx/yarn.lock",
+            "path": "./benchmarks/routers/yarn.lock",
             "source": "YarnLock"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/routers/tsconfig.json",
+            "source": "TsConfig"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/routers-deno/deno.json",
+            "source": "DenoJson"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/routers-deno/deno.lock",
+            "source": "DenoLock"
           }
         },
         {
@@ -59,62 +104,41 @@
         },
         {
           "Strong": {
-            "path": "./benchmarks/routers-deno/deno.json",
-            "source": "DenoJson"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/routers-deno/deno.lock",
-            "source": "DenoLock"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/routers/package.json",
+            "path": "./benchmarks/jsx/package.json",
             "source": "PackageJson"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/routers/tsconfig.json",
-            "source": "TsConfig"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./benchmarks/routers/yarn.lock",
+            "path": "./benchmarks/jsx/yarn.lock",
             "source": "YarnLock"
           }
         },
         {
           "Strong": {
-            "path": "./benchmarks/utils/package.json",
+            "path": "./benchmarks/jsx/tsconfig.json",
+            "source": "TsConfig"
+          }
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/handle-event/package.json",
             "source": "PackageJson"
+          }
+        },
+        {
+          "Weak": "JsFile"
+        },
+        {
+          "Strong": {
+            "path": "./benchmarks/handle-event/yarn.lock",
+            "source": "YarnLock"
           }
         },
         {
           "Strong": {
             "path": "./benchmarks/webapp/package.json",
             "source": "PackageJson"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./bun.lockb",
-            "source": "BunLockb"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./package.json",
-            "source": "PackageJson"
-          }
-        },
-        {
-          "Strong": {
-            "path": "./perf-measures/tsconfig.json",
-            "source": "TsConfig"
           }
         },
         {
@@ -131,33 +155,55 @@
         },
         {
           "Strong": {
-            "path": "./runtime-tests/tsconfig.json",
+            "path": "./benchmarks/jsx/src/react-jsx/tsconfig.json",
             "source": "TsConfig"
           }
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "language": "JavaScript",
+      "versions": [
+        {
+          "raw": ">=16.9.0",
+          "parsed": {
+            "major": 16,
+            "minor": 9,
+            "patch": 0,
+            "pre_release": null,
+            "build": null,
+            "constraint": "GreaterOrEqual"
+          },
+          "source": "PackageJsonEnginesNode",
+          "path": "./package.json"
         },
         {
-          "Strong": {
-            "path": "./tsconfig.json",
-            "source": "TsConfig"
-          }
+          "raw": "^5.3.3",
+          "parsed": {
+            "major": 5,
+            "minor": 3,
+            "patch": 3,
+            "pre_release": null,
+            "build": null,
+            "constraint": "Caret"
+          },
+          "source": "PackageJsonTypescript",
+          "path": "./package.json"
         },
         {
-          "Strong": {
-            "path": "./yarn.lock",
-            "source": "YarnLock"
-          }
-        },
-        {
-          "Weak": "JsFile"
-        },
-        {
-          "Weak": "MjsFile"
-        },
-        {
-          "Weak": "TsFile"
-        },
-        {
-          "Weak": "TsxFile"
+          "raw": "^5.3.2",
+          "parsed": {
+            "major": 5,
+            "minor": 3,
+            "patch": 2,
+            "pre_release": null,
+            "build": null,
+            "constraint": "Caret"
+          },
+          "source": "PackageJsonTypescript",
+          "path": "./benchmarks/jsx/package.json"
         }
       ]
     }
@@ -167,69 +213,69 @@
       "language": "JavaScript",
       "package_managers": [
         {
-          "package_manager": "Yarn",
-          "path": "./benchmarks/handle-event/yarn.lock",
-          "source": "YarnLock",
+          "package_manager": "Bun",
+          "source": "BunLockb",
+          "path": "./bun.lockb",
           "version": null
         },
         {
           "package_manager": "Yarn",
-          "path": "./benchmarks/jsx/yarn.lock",
           "source": "YarnLock",
+          "path": "./yarn.lock",
+          "version": null
+        },
+        {
+          "package_manager": "Yarn",
+          "source": "YarnLock",
+          "path": "./benchmarks/routers/yarn.lock",
+          "version": null
+        },
+        {
+          "package_manager": "Deno",
+          "source": "DenoJson",
+          "path": "./benchmarks/routers-deno/deno.json",
+          "version": null
+        },
+        {
+          "package_manager": "Deno",
+          "source": "DenoLock",
+          "path": "./benchmarks/routers-deno/deno.lock",
           "version": null
         },
         {
           "package_manager": "Bun",
-          "path": "./benchmarks/query-param/bun.lockb",
           "source": "BunLockb",
+          "path": "./benchmarks/query-param/bun.lockb",
           "version": null
         },
         {
           "package_manager": "Npm",
-          "path": "./benchmarks/query-param/package-lock.json",
           "source": "PackageLockJson",
-          "version": null
-        },
-        {
-          "package_manager": "Deno",
-          "path": "./benchmarks/routers-deno/deno.json",
-          "source": "DenoJson",
-          "version": null
-        },
-        {
-          "package_manager": "Deno",
-          "path": "./benchmarks/routers-deno/deno.lock",
-          "source": "DenoLock",
+          "path": "./benchmarks/query-param/package-lock.json",
           "version": null
         },
         {
           "package_manager": "Yarn",
-          "path": "./benchmarks/routers/yarn.lock",
           "source": "YarnLock",
+          "path": "./benchmarks/jsx/yarn.lock",
           "version": null
         },
         {
-          "package_manager": "Bun",
-          "path": "./bun.lockb",
-          "source": "BunLockb",
+          "package_manager": "Yarn",
+          "source": "YarnLock",
+          "path": "./benchmarks/handle-event/yarn.lock",
           "version": null
         },
         {
           "package_manager": "Deno",
+          "source": "DenoJson",
           "path": "./runtime-tests/deno/deno.json",
-          "source": "DenoJson",
           "version": null
         },
         {
           "package_manager": "Deno",
-          "path": "./runtime-tests/deno/deno.lock",
           "source": "DenoLock",
-          "version": null
-        },
-        {
-          "package_manager": "Yarn",
-          "path": "./yarn.lock",
-          "source": "YarnLock",
+          "path": "./runtime-tests/deno/deno.lock",
           "version": null
         }
       ]
@@ -237,315 +283,454 @@
   ],
   "task_runners": [
     {
-      "commands": {
-        "build": [],
-        "other": [
-          {
-            "command": "node --experimental-specifier-resolution=node index.js",
-            "description": null,
-            "name": "start"
-          }
-        ],
-        "test": [
-          {
-            "command": "echo \"Error: no test specified\" && exit 1",
-            "description": null,
-            "name": "test"
-          }
-        ]
-      },
-      "path": "./benchmarks/handle-event/package.json",
+      "task_runner": "NpmScripts",
       "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    },
-    {
-      "commands": {
-        "build": [
-          {
-            "command": "esbuild --minify --minify-syntax --tree-shaking=true --bundle src/{hono,react,preact,nano}.ts --outdir=dist",
-            "description": null,
-            "name": "compare-bundle-size"
-          }
-        ],
-        "other": [
-          {
-            "command": "bun run src/benchmark.ts",
-            "description": null,
-            "name": "bench:bun"
-          },
-          {
-            "command": "esbuild --bundle src/benchmark.ts | node",
-            "description": null,
-            "name": "bench:node"
-          },
-          {
-            "command": "esbuild --bundle src/react-jsx/benchmark.ts | node",
-            "description": null,
-            "name": "bench:react-jsx:node"
-          }
-        ],
-        "test": []
-      },
-      "path": "./benchmarks/jsx/package.json",
-      "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    },
-    {
-      "commands": {
-        "build": [],
-        "other": [
-          {
-            "command": "bun run ./src/bench.mts",
-            "description": null,
-            "name": "bench:bun"
-          },
-          {
-            "command": "tsx ./src/bench.mts",
-            "description": null,
-            "name": "bench:node"
-          }
-        ],
-        "test": []
-      },
-      "path": "./benchmarks/query-param/package.json",
-      "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    },
-    {
-      "commands": {
-        "build": [],
-        "other": [
-          {
-            "command": "bun run ./src/bench-includes-init.mts",
-            "description": null,
-            "name": "bench-includes-init:bun"
-          },
-          {
-            "command": "tsx ./src/bench-includes-init.mts",
-            "description": null,
-            "name": "bench-includes-init:node"
-          },
-          {
-            "command": "bun run ./src/bench.mts",
-            "description": null,
-            "name": "bench:bun"
-          },
-          {
-            "command": "tsx ./src/bench.mts",
-            "description": null,
-            "name": "bench:node"
-          }
-        ],
-        "test": []
-      },
-      "path": "./benchmarks/routers/package.json",
-      "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    },
-    {
-      "commands": {
-        "build": [],
-        "other": [],
-        "test": []
-      },
-      "path": "./benchmarks/utils/package.json",
-      "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    },
-    {
-      "commands": {
-        "build": [],
-        "other": [
-          {
-            "command": "wrangler dev hono.js --local --port 8787",
-            "description": null,
-            "name": "start:hono"
-          },
-          {
-            "command": "wrangler dev itty-router.js --local --port 8788",
-            "description": null,
-            "name": "start:itty-router"
-          },
-          {
-            "command": "wrangler dev sunder.js --local --port 8789",
-            "description": null,
-            "name": "start:sunder"
-          }
-        ],
-        "test": []
-      },
-      "path": "./benchmarks/webapp/package.json",
-      "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    },
-    {
-      "commands": {
-        "build": [
-          {
-            "command": "bun run --shell bun remove-dist && bun ./build/build.ts && bun run copy:package.cjs.json",
-            "description": null,
-            "name": "build"
-          },
-          {
-            "command": "cp ./package.cjs.json ./dist/cjs/package.json && cp ./package.cjs.json ./dist/types/package.json",
-            "description": null,
-            "name": "copy:package.cjs.json"
-          },
-          {
-            "command": "publint",
-            "description": null,
-            "name": "postbuild"
-          },
-          {
-            "command": "rm -rf dist",
-            "description": null,
-            "name": "remove-dist"
-          }
-        ],
-        "other": [
-          {
-            "command": "vitest --run --coverage",
-            "description": null,
-            "name": "coverage"
-          },
-          {
-            "command": "prettier --check --cache \"src/**/*.{js,ts,tsx}\" \"runtime-tests/**/*.{js,ts,tsx}\" \"build/**/*.{js,ts,tsx}\" \"perf-measures/**/*.{js,ts,tsx}\"",
-            "description": null,
-            "name": "format"
-          },
-          {
-            "command": "prettier --write --cache --cache-strategy metadata \"src/**/*.{js,ts,tsx}\" \"runtime-tests/**/*.{js,ts,tsx}\" \"build/**/*.{js,ts,tsx}\" \"perf-measures/**/*.{js,ts,tsx}\"",
-            "description": null,
-            "name": "format:fix"
-          },
-          {
-            "command": "eslint src runtime-tests build perf-measures",
-            "description": null,
-            "name": "lint"
-          },
-          {
-            "command": "eslint src runtime-tests build perf-measures --fix",
-            "description": null,
-            "name": "lint:fix"
-          },
-          {
-            "command": "bun test:deno && bun run build",
-            "description": null,
-            "name": "prerelease"
-          },
-          {
-            "command": "np",
-            "description": null,
-            "name": "release"
-          },
-          {
-            "command": "bun run --shell bun remove-dist && bun ./build/build.ts --watch && bun run copy:package.cjs.json",
-            "description": null,
-            "name": "watch"
-          }
-        ],
-        "test": [
-          {
-            "command": "tsc --noEmit && vitest --run && vitest -c .vitest.config/jsx-runtime-default.ts --run && vitest -c .vitest.config/jsx-runtime-dom.ts --run",
-            "description": null,
-            "name": "test"
-          },
-          {
-            "command": "bun run test && bun test:deno && bun test:bun && bun test:fastly && bun test:node && bun test:workerd && bun test:lambda && bun test:lambda-edge",
-            "description": null,
-            "name": "test:all"
-          },
-          {
-            "command": "bun test --jsx-import-source ../../src/jsx runtime-tests/bun/index.test.tsx",
-            "description": null,
-            "name": "test:bun"
-          },
-          {
-            "command": "deno test --allow-read --allow-env --allow-write --allow-net -c runtime-tests/deno/deno.json runtime-tests/deno && deno test --no-lock -c runtime-tests/deno-jsx/deno.precompile.json runtime-tests/deno-jsx && deno test --no-lock -c runtime-tests/deno-jsx/deno.react-jsx.json runtime-tests/deno-jsx",
-            "description": null,
-            "name": "test:deno"
-          },
-          {
-            "command": "vitest --run --config ./runtime-tests/fastly/vitest.config.ts",
-            "description": null,
-            "name": "test:fastly"
-          },
-          {
-            "command": "vitest --run --config ./runtime-tests/lambda/vitest.config.ts",
-            "description": null,
-            "name": "test:lambda"
-          },
-          {
-            "command": "vitest --run --config ./runtime-tests/lambda-edge/vitest.config.ts",
-            "description": null,
-            "name": "test:lambda-edge"
-          },
-          {
-            "command": "vitest --run --config ./runtime-tests/node/vitest.config.ts",
-            "description": null,
-            "name": "test:node"
-          },
-          {
-            "command": "vitest --watch",
-            "description": null,
-            "name": "test:watch"
-          },
-          {
-            "command": "vitest --run --config ./runtime-tests/workerd/vitest.config.ts",
-            "description": null,
-            "name": "test:workerd"
-          }
-        ]
-      },
       "path": "./package.json",
-      "source": "PackageJson",
-      "task_runner": "NpmScripts"
-    }
-  ],
-  "versions": [
+      "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test",
+              "script_body": "tsc --noEmit && vitest --run && vitest -c .vitest.config/jsx-runtime-default.ts --run && vitest -c .vitest.config/jsx-runtime-dom.ts --run",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:all",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:all",
+              "script_body": "bun run test && bun test:deno && bun test:bun && bun test:fastly && bun test:node && bun test:workerd && bun test:lambda && bun test:lambda-edge",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:bun",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:bun",
+              "script_body": "bun test --jsx-import-source ../../src/jsx runtime-tests/bun/index.test.tsx",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:deno",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:deno",
+              "script_body": "deno test --allow-read --allow-env --allow-write --allow-net -c runtime-tests/deno/deno.json runtime-tests/deno && deno test --no-lock -c runtime-tests/deno-jsx/deno.precompile.json runtime-tests/deno-jsx && deno test --no-lock -c runtime-tests/deno-jsx/deno.react-jsx.json runtime-tests/deno-jsx",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:fastly",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:fastly",
+              "script_body": "vitest --run --config ./runtime-tests/fastly/vitest.config.ts",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:lambda",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:lambda",
+              "script_body": "vitest --run --config ./runtime-tests/lambda/vitest.config.ts",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:lambda-edge",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:lambda-edge",
+              "script_body": "vitest --run --config ./runtime-tests/lambda-edge/vitest.config.ts",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:node",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:node",
+              "script_body": "vitest --run --config ./runtime-tests/node/vitest.config.ts",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:watch",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:watch",
+              "script_body": "vitest --watch",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "test:workerd",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test:workerd",
+              "script_body": "vitest --run --config ./runtime-tests/workerd/vitest.config.ts",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          }
+        ],
+        "build": [
+          {
+            "name": "build",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "build",
+              "script_body": "bun run --shell bun remove-dist && bun ./build/build.ts && bun run copy:package.cjs.json",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "copy:package.cjs.json",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "copy:package.cjs.json",
+              "script_body": "cp ./package.cjs.json ./dist/cjs/package.json && cp ./package.cjs.json ./dist/types/package.json",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "postbuild",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "postbuild",
+              "script_body": "publint",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "remove-dist",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "remove-dist",
+              "script_body": "rm -rf dist",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          }
+        ],
+        "other": [
+          {
+            "name": "coverage",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "coverage",
+              "script_body": "vitest --run --coverage",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "format",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "format",
+              "script_body": "prettier --check --cache \"src/**/*.{js,ts,tsx}\" \"runtime-tests/**/*.{js,ts,tsx}\" \"build/**/*.{js,ts,tsx}\" \"perf-measures/**/*.{js,ts,tsx}\"",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "format:fix",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "format:fix",
+              "script_body": "prettier --write --cache --cache-strategy metadata \"src/**/*.{js,ts,tsx}\" \"runtime-tests/**/*.{js,ts,tsx}\" \"build/**/*.{js,ts,tsx}\" \"perf-measures/**/*.{js,ts,tsx}\"",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "lint",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "lint",
+              "script_body": "eslint src runtime-tests build perf-measures",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "lint:fix",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "lint:fix",
+              "script_body": "eslint src runtime-tests build perf-measures --fix",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "prerelease",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "prerelease",
+              "script_body": "bun test:deno && bun run build",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "release",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "release",
+              "script_body": "np",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "watch",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "watch",
+              "script_body": "bun run --shell bun remove-dist && bun ./build/build.ts --watch && bun run copy:package.cjs.json",
+              "package_json_path": "./package.json"
+            },
+            "description": null
+          }
+        ]
+      }
+    },
     {
-      "language": "JavaScript",
-      "versions": [
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "Caret",
-            "major": 5,
-            "minor": 3,
-            "patch": 2,
-            "pre_release": null
+      "task_runner": "NpmScripts",
+      "source": "PackageJson",
+      "path": "./benchmarks/utils/package.json",
+      "commands": {
+        "test": [],
+        "build": [],
+        "other": []
+      }
+    },
+    {
+      "task_runner": "NpmScripts",
+      "source": "PackageJson",
+      "path": "./benchmarks/routers/package.json",
+      "commands": {
+        "test": [],
+        "build": [],
+        "other": [
+          {
+            "name": "bench-includes-init:bun",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench-includes-init:bun",
+              "script_body": "bun run ./src/bench-includes-init.mts",
+              "package_json_path": "./benchmarks/routers/package.json"
+            },
+            "description": null
           },
-          "path": "./benchmarks/jsx/package.json",
-          "raw": "^5.3.2",
-          "source": "PackageJsonTypescript"
-        },
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "GreaterOrEqual",
-            "major": 16,
-            "minor": 9,
-            "patch": 0,
-            "pre_release": null
+          {
+            "name": "bench-includes-init:node",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench-includes-init:node",
+              "script_body": "tsx ./src/bench-includes-init.mts",
+              "package_json_path": "./benchmarks/routers/package.json"
+            },
+            "description": null
           },
-          "path": "./package.json",
-          "raw": ">=16.9.0",
-          "source": "PackageJsonEnginesNode"
-        },
-        {
-          "parsed": {
-            "build": null,
-            "constraint": "Caret",
-            "major": 5,
-            "minor": 3,
-            "patch": 3,
-            "pre_release": null
+          {
+            "name": "bench:bun",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench:bun",
+              "script_body": "bun run ./src/bench.mts",
+              "package_json_path": "./benchmarks/routers/package.json"
+            },
+            "description": null
           },
-          "path": "./package.json",
-          "raw": "^5.3.3",
-          "source": "PackageJsonTypescript"
-        }
-      ]
+          {
+            "name": "bench:node",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench:node",
+              "script_body": "tsx ./src/bench.mts",
+              "package_json_path": "./benchmarks/routers/package.json"
+            },
+            "description": null
+          }
+        ]
+      }
+    },
+    {
+      "task_runner": "NpmScripts",
+      "source": "PackageJson",
+      "path": "./benchmarks/query-param/package.json",
+      "commands": {
+        "test": [],
+        "build": [],
+        "other": [
+          {
+            "name": "bench:bun",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench:bun",
+              "script_body": "bun run ./src/bench.mts",
+              "package_json_path": "./benchmarks/query-param/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "bench:node",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench:node",
+              "script_body": "tsx ./src/bench.mts",
+              "package_json_path": "./benchmarks/query-param/package.json"
+            },
+            "description": null
+          }
+        ]
+      }
+    },
+    {
+      "task_runner": "NpmScripts",
+      "source": "PackageJson",
+      "path": "./benchmarks/jsx/package.json",
+      "commands": {
+        "test": [],
+        "build": [
+          {
+            "name": "compare-bundle-size",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "compare-bundle-size",
+              "script_body": "esbuild --minify --minify-syntax --tree-shaking=true --bundle src/{hono,react,preact,nano}.ts --outdir=dist",
+              "package_json_path": "./benchmarks/jsx/package.json"
+            },
+            "description": null
+          }
+        ],
+        "other": [
+          {
+            "name": "bench:bun",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench:bun",
+              "script_body": "bun run src/benchmark.ts",
+              "package_json_path": "./benchmarks/jsx/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "bench:node",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench:node",
+              "script_body": "esbuild --bundle src/benchmark.ts | node",
+              "package_json_path": "./benchmarks/jsx/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "bench:react-jsx:node",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "bench:react-jsx:node",
+              "script_body": "esbuild --bundle src/react-jsx/benchmark.ts | node",
+              "package_json_path": "./benchmarks/jsx/package.json"
+            },
+            "description": null
+          }
+        ]
+      }
+    },
+    {
+      "task_runner": "NpmScripts",
+      "source": "PackageJson",
+      "path": "./benchmarks/handle-event/package.json",
+      "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "test",
+              "script_body": "echo \"Error: no test specified\" && exit 1",
+              "package_json_path": "./benchmarks/handle-event/package.json"
+            },
+            "description": null
+          }
+        ],
+        "build": [],
+        "other": [
+          {
+            "name": "start",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "start",
+              "script_body": "node --experimental-specifier-resolution=node index.js",
+              "package_json_path": "./benchmarks/handle-event/package.json"
+            },
+            "description": null
+          }
+        ]
+      }
+    },
+    {
+      "task_runner": "NpmScripts",
+      "source": "PackageJson",
+      "path": "./benchmarks/webapp/package.json",
+      "commands": {
+        "test": [],
+        "build": [],
+        "other": [
+          {
+            "name": "start:hono",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "start:hono",
+              "script_body": "wrangler dev hono.js --local --port 8787",
+              "package_json_path": "./benchmarks/webapp/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "start:itty-router",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "start:itty-router",
+              "script_body": "wrangler dev itty-router.js --local --port 8788",
+              "package_json_path": "./benchmarks/webapp/package.json"
+            },
+            "description": null
+          },
+          {
+            "name": "start:sunder",
+            "executable": {
+              "type": "PackageManagerScript",
+              "script_name": "start:sunder",
+              "script_body": "wrangler dev sunder.js --local --port 8789",
+              "package_json_path": "./benchmarks/webapp/package.json"
+            },
+            "description": null
+          }
+        ]
+      }
     }
   ]
 }
