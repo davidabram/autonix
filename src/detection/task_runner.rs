@@ -233,7 +233,8 @@ impl TaskRunnerFile {
             TaskRunnerSource::NxJson => extract_nx_commands(content),
             TaskRunnerSource::ToxIni => extract_tox_commands(content),
             TaskRunnerSource::NoxPy | TaskRunnerSource::Noxfile => extract_nox_commands(content),
-            _ => TaskRunnerCommands::default(),
+            TaskRunnerSource::TasksPy => extract_invoke_commands(content),
+            TaskRunnerSource::InvokeYaml => extract_invoke_yaml_commands(content),
         }
     }
 }
@@ -681,6 +682,67 @@ fn extract_nox_commands(content: &str) -> TaskRunnerCommands {
             },
             CommandCategory::Test,
         );
+    }
+
+    commands
+}
+
+fn extract_invoke_commands(content: &str) -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+    let func_re = Regex::new(r"^def\s+([a-zA-Z0-9_]+)\s*\(").unwrap();
+    let task_decorator_re = Regex::new(r"^@task\b").unwrap();
+    let lines: Vec<&str> = content.lines().collect();
+
+    for (idx, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if task_decorator_re.is_match(trimmed) {
+            let func_name = lines[idx..]
+                .iter()
+                .map(|l| l.trim())
+                .filter(|t| {
+                    !t.starts_with('@')
+                        && !t.is_empty()
+                        && !t.starts_with('#')
+                        && (!t.starts_with(')') || t.contains("def "))
+                })
+                .find_map(|t| func_re.captures(t)?.get(1).map(|m| m.as_str().to_string()));
+
+            if let Some(task_name) = func_name {
+                commands.add_command(
+                    TaskCommand {
+                        name: task_name.clone(),
+                        command: format!("invoke {}", task_name),
+                        description: None,
+                    },
+                    classify_command(&task_name),
+                );
+            }
+        }
+    }
+
+    commands
+}
+
+fn extract_invoke_yaml_commands(content: &str) -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+
+    let Ok(yaml) = serde_yaml::from_str::<YamlValue>(content) else {
+        return commands;
+    };
+
+    if let Some(tasks) = yaml.get("tasks").and_then(|t| t.as_mapping()) {
+        for (task_name, _task_data) in tasks {
+            if let Some(name) = task_name.as_str() {
+                commands.add_command(
+                    TaskCommand {
+                        name: name.to_string(),
+                        command: format!("invoke {}", name),
+                        description: None,
+                    },
+                    classify_command(name),
+                );
+            }
+        }
     }
 
     commands
@@ -1838,6 +1900,264 @@ def build(session):
                 .other
                 .iter()
                 .any(|c| c.name == "lint" && c.command == "nox -s lint")
+        );
+    }
+
+    #[test]
+    fn test_extract_invoke_commands_basic() {
+        let content = r#"
+from invoke import task
+
+@task
+def test(c):
+    c.run("pytest tests/")
+"#;
+        let commands = extract_invoke_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "invoke test");
+    }
+
+    #[test]
+    fn test_extract_invoke_commands_multiple_tasks() {
+        let content = r#"
+from invoke import task
+
+@task
+def test(c):
+    c.run("pytest")
+
+@task
+def lint(c):
+    c.run("flake8 .")
+
+@task
+def build(c):
+    c.run("python -m build")
+
+@task
+def clean(c):
+    c.run("rm -rf dist/")
+"#;
+        let commands = extract_invoke_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 2);
+
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "invoke test");
+
+        let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
+        assert_eq!(build_cmd.command, "invoke build");
+
+        let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
+        assert_eq!(lint_cmd.command, "invoke lint");
+
+        let clean_cmd = commands.other.iter().find(|c| c.name == "clean").unwrap();
+        assert_eq!(clean_cmd.command, "invoke clean");
+    }
+
+    #[test]
+    fn test_extract_invoke_commands_with_parameters() {
+        let content = r#"
+from invoke import task
+
+@task(pre=[clean])
+def build(c):
+    c.run("python setup.py build")
+
+@task
+def clean(c):
+    c.run("rm -rf build/")
+"#;
+        let commands = extract_invoke_commands(content);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+
+        let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
+        assert_eq!(build_cmd.command, "invoke build");
+    }
+
+    #[test]
+    fn test_extract_invoke_commands_empty() {
+        let content = r#"
+from invoke import task
+
+# No tasks defined yet
+"#;
+        let commands = extract_invoke_commands(content);
+        assert_eq!(commands.test.len(), 0);
+        assert_eq!(commands.build.len(), 0);
+        assert_eq!(commands.other.len(), 0);
+    }
+
+    #[test]
+    fn test_extract_invoke_commands_with_docstrings() {
+        let content = r#"
+from invoke import task
+
+@task
+def test(c):
+    """Run the test suite."""
+    c.run("pytest")
+
+@task
+def coverage(c):
+    """Run tests with coverage."""
+    c.run("pytest --cov")
+"#;
+        let commands = extract_invoke_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+
+        let test_cmd = commands.test.iter().find(|c| c.name == "test").unwrap();
+        assert_eq!(test_cmd.command, "invoke test");
+
+        let coverage_cmd = commands
+            .other
+            .iter()
+            .find(|c| c.name == "coverage")
+            .unwrap();
+        assert_eq!(coverage_cmd.command, "invoke coverage");
+    }
+
+    #[test]
+    fn test_extract_invoke_yaml_commands() {
+        let content = r#"
+tasks:
+  test:
+    command: pytest tests/
+  build:
+    command: python -m build
+  lint:
+    command: flake8 .
+"#;
+        let commands = extract_invoke_yaml_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "invoke test");
+
+        let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
+        assert_eq!(build_cmd.command, "invoke build");
+
+        let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
+        assert_eq!(lint_cmd.command, "invoke lint");
+    }
+
+    #[test]
+    fn test_extract_invoke_yaml_commands_empty() {
+        let content = r#"
+# No tasks defined
+other_config: value
+"#;
+        let commands = extract_invoke_yaml_commands(content);
+        assert!(commands.test.is_empty());
+        assert!(commands.build.is_empty());
+        assert!(commands.other.is_empty());
+    }
+
+    #[test]
+    fn test_extract_invoke_yaml_commands_invalid() {
+        let content = "not valid yaml: [";
+        let commands = extract_invoke_yaml_commands(content);
+        assert!(commands.test.is_empty());
+        assert!(commands.build.is_empty());
+        assert!(commands.other.is_empty());
+    }
+
+    #[test]
+    fn test_try_from_tasks_py() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "tasks.py",
+            r#"
+from invoke import task
+
+@task
+def test(c):
+    c.run("pytest")
+"#,
+        );
+        let result = TaskRunnerFile::try_from(path);
+        assert!(result.is_ok());
+        let file = result.unwrap();
+        assert_eq!(file.task_runner, TaskRunner::Invoke);
+        assert_eq!(file.source, TaskRunnerSource::TasksPy);
+    }
+
+    #[test]
+    fn test_try_from_invoke_yaml() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "invoke.yaml",
+            r#"
+tasks:
+  test:
+    command: pytest
+"#,
+        );
+        let result = TaskRunnerFile::try_from(path);
+        assert!(result.is_ok());
+        let file = result.unwrap();
+        assert_eq!(file.task_runner, TaskRunner::Invoke);
+        assert_eq!(file.source, TaskRunnerSource::InvokeYaml);
+    }
+
+    #[test]
+    fn test_invoke_file_to_detection() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "tasks.py",
+            r#"
+from invoke import task
+
+@task
+def test(c):
+    c.run("pytest")
+
+@task
+def lint(c):
+    c.run("flake8 .")
+
+@task
+def build(c):
+    c.run("python -m build")
+"#,
+        );
+        let file = TaskRunnerFile::try_from(path).unwrap();
+        let detection = TaskRunnerDetection::from(file);
+
+        assert_eq!(detection.task_runner, TaskRunner::Invoke);
+        assert_eq!(detection.commands.test.len(), 1);
+        assert_eq!(detection.commands.build.len(), 1);
+        assert_eq!(detection.commands.other.len(), 1);
+
+        assert!(
+            detection
+                .commands
+                .test
+                .iter()
+                .any(|c| c.name == "test" && c.command == "invoke test")
+        );
+        assert!(
+            detection
+                .commands
+                .build
+                .iter()
+                .any(|c| c.name == "build" && c.command == "invoke build")
+        );
+        assert!(
+            detection
+                .commands
+                .other
+                .iter()
+                .any(|c| c.name == "lint" && c.command == "invoke lint")
         );
     }
 }
