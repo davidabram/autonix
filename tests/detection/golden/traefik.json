@@ -479,6 +479,82 @@
       "commands": {
         "build": [
           {
+            "command": "go build",
+            "description": "Build project",
+            "name": "build"
+          }
+        ],
+        "other": [
+          {
+            "command": "go fmt ./...",
+            "description": "Format code",
+            "name": "fmt"
+          },
+          {
+            "command": "go run .",
+            "description": "Run project",
+            "name": "run"
+          },
+          {
+            "command": "go vet ./...",
+            "description": "Examine code for issues",
+            "name": "vet"
+          }
+        ],
+        "test": [
+          {
+            "command": "go test ./...",
+            "description": "Run tests",
+            "name": "test"
+          }
+        ]
+      },
+      "path": "./go.mod",
+      "source": "GoMod",
+      "task_runner": "GoTask"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "go build",
+            "description": "Build project",
+            "name": "build"
+          }
+        ],
+        "other": [
+          {
+            "command": "go fmt ./...",
+            "description": "Format code",
+            "name": "fmt"
+          },
+          {
+            "command": "go run .",
+            "description": "Run project",
+            "name": "run"
+          },
+          {
+            "command": "go vet ./...",
+            "description": "Examine code for issues",
+            "name": "vet"
+          }
+        ],
+        "test": [
+          {
+            "command": "go test ./...",
+            "description": "Run tests",
+            "name": "test"
+          }
+        ]
+      },
+      "path": "./pkg/plugins/fixtures/withoutsocket/go.mod",
+      "source": "GoMod",
+      "task_runner": "GoTask"
+    },
+    {
+      "commands": {
+        "build": [
+          {
             "command": "NODE_ENV=production APP_ENV=production yarn build-quasar && yarn transfer spa",
             "description": null,
             "name": "build"

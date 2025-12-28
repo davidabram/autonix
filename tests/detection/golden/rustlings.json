@@ -76,6 +76,179 @@
       ]
     }
   ],
-  "task_runners": [],
+  "task_runners": [
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "cargo build",
+            "description": "Build project",
+            "name": "build"
+          },
+          {
+            "command": "cargo build --release",
+            "description": "Build optimized release",
+            "name": "build-release"
+          }
+        ],
+        "other": [
+          {
+            "command": "cargo check",
+            "description": "Check without building",
+            "name": "check"
+          },
+          {
+            "command": "cargo clippy",
+            "description": "Run linter",
+            "name": "clippy"
+          },
+          {
+            "command": "cargo fmt",
+            "description": "Format code",
+            "name": "fmt"
+          }
+        ],
+        "test": [
+          {
+            "command": "cargo test",
+            "description": "Run tests",
+            "name": "test"
+          }
+        ]
+      },
+      "path": "./Cargo.toml",
+      "source": "CargoToml",
+      "task_runner": "Cargo"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "cargo build",
+            "description": "Build project",
+            "name": "build"
+          },
+          {
+            "command": "cargo build --release",
+            "description": "Build optimized release",
+            "name": "build-release"
+          }
+        ],
+        "other": [
+          {
+            "command": "cargo check",
+            "description": "Check without building",
+            "name": "check"
+          },
+          {
+            "command": "cargo clippy",
+            "description": "Run linter",
+            "name": "clippy"
+          },
+          {
+            "command": "cargo fmt",
+            "description": "Format code",
+            "name": "fmt"
+          }
+        ],
+        "test": [
+          {
+            "command": "cargo test",
+            "description": "Run tests",
+            "name": "test"
+          }
+        ]
+      },
+      "path": "./dev/Cargo.toml",
+      "source": "CargoToml",
+      "task_runner": "Cargo"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "cargo build",
+            "description": "Build project",
+            "name": "build"
+          },
+          {
+            "command": "cargo build --release",
+            "description": "Build optimized release",
+            "name": "build-release"
+          }
+        ],
+        "other": [
+          {
+            "command": "cargo check",
+            "description": "Check without building",
+            "name": "check"
+          },
+          {
+            "command": "cargo clippy",
+            "description": "Run linter",
+            "name": "clippy"
+          },
+          {
+            "command": "cargo fmt",
+            "description": "Format code",
+            "name": "fmt"
+          }
+        ],
+        "test": [
+          {
+            "command": "cargo test",
+            "description": "Run tests",
+            "name": "test"
+          }
+        ]
+      },
+      "path": "./rustlings-macros/Cargo.toml",
+      "source": "CargoToml",
+      "task_runner": "Cargo"
+    },
+    {
+      "commands": {
+        "build": [
+          {
+            "command": "cargo build",
+            "description": "Build project",
+            "name": "build"
+          },
+          {
+            "command": "cargo build --release",
+            "description": "Build optimized release",
+            "name": "build-release"
+          }
+        ],
+        "other": [
+          {
+            "command": "cargo check",
+            "description": "Check without building",
+            "name": "check"
+          },
+          {
+            "command": "cargo clippy",
+            "description": "Run linter",
+            "name": "clippy"
+          },
+          {
+            "command": "cargo fmt",
+            "description": "Format code",
+            "name": "fmt"
+          }
+        ],
+        "test": [
+          {
+            "command": "cargo test",
+            "description": "Run tests",
+            "name": "test"
+          }
+        ]
+      },
+      "path": "./tests/test_exercises/dev/Cargo.toml",
+      "source": "CargoToml",
+      "task_runner": "Cargo"
+    }
+  ],
   "versions": []
 }

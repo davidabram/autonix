@@ -32,6 +32,12 @@ pub enum TaskRunner {
     Tox,
     Nox,
     Invoke,
+
+    // Rust
+    Cargo,
+
+    // Go
+    GoTask,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -68,6 +74,12 @@ pub enum TaskRunnerSource {
     Noxfile,
     TasksPy,
     InvokeYaml,
+
+    // Rust
+    CargoToml,
+
+    // Go
+    GoMod,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -137,6 +149,8 @@ impl From<&TaskRunnerSource> for TaskRunner {
             TaskRunnerSource::ToxIni => TaskRunner::Tox,
             TaskRunnerSource::NoxPy | TaskRunnerSource::Noxfile => TaskRunner::Nox,
             TaskRunnerSource::TasksPy | TaskRunnerSource::InvokeYaml => TaskRunner::Invoke,
+            TaskRunnerSource::CargoToml => TaskRunner::Cargo,
+            TaskRunnerSource::GoMod => TaskRunner::GoTask,
         }
     }
 }
@@ -184,6 +198,12 @@ impl TryFrom<PathBuf> for TaskRunnerFile {
             "noxfile.py" => TaskRunnerSource::Noxfile,
             "tasks.py" => TaskRunnerSource::TasksPy,
             "invoke.yaml" | "invoke.yml" => TaskRunnerSource::InvokeYaml,
+
+            // Rust
+            "Cargo.toml" => TaskRunnerSource::CargoToml,
+
+            // Go
+            "go.mod" => TaskRunnerSource::GoMod,
 
             _ => return Err(()),
         };
@@ -235,6 +255,8 @@ impl TaskRunnerFile {
             TaskRunnerSource::NoxPy | TaskRunnerSource::Noxfile => extract_nox_commands(content),
             TaskRunnerSource::TasksPy => extract_invoke_commands(content),
             TaskRunnerSource::InvokeYaml => extract_invoke_yaml_commands(content),
+            TaskRunnerSource::CargoToml => get_cargo_commands(),
+            TaskRunnerSource::GoMod => get_go_commands(),
         }
     }
 }
@@ -451,6 +473,95 @@ fn get_rollup_commands() -> TaskRunnerCommands {
         description: Some("Watch and rebuild on changes".to_string()),
     };
     commands.add_command(watch_cmd, CommandCategory::Other);
+
+    commands
+}
+
+fn get_cargo_commands() -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+
+    let test_cmd = TaskCommand {
+        name: "test".to_string(),
+        command: "cargo test".to_string(),
+        description: Some("Run tests".to_string()),
+    };
+    commands.add_command(test_cmd, CommandCategory::Test);
+
+    let build_cmd = TaskCommand {
+        name: "build".to_string(),
+        command: "cargo build".to_string(),
+        description: Some("Build project".to_string()),
+    };
+    commands.add_command(build_cmd, CommandCategory::Build);
+
+    let build_release_cmd = TaskCommand {
+        name: "build-release".to_string(),
+        command: "cargo build --release".to_string(),
+        description: Some("Build optimized release".to_string()),
+    };
+    commands.add_command(build_release_cmd, CommandCategory::Build);
+
+    let check_cmd = TaskCommand {
+        name: "check".to_string(),
+        command: "cargo check".to_string(),
+        description: Some("Check without building".to_string()),
+    };
+    commands.add_command(check_cmd, CommandCategory::Other);
+
+    let clippy_cmd = TaskCommand {
+        name: "clippy".to_string(),
+        command: "cargo clippy".to_string(),
+        description: Some("Run linter".to_string()),
+    };
+    commands.add_command(clippy_cmd, CommandCategory::Other);
+
+    let fmt_cmd = TaskCommand {
+        name: "fmt".to_string(),
+        command: "cargo fmt".to_string(),
+        description: Some("Format code".to_string()),
+    };
+    commands.add_command(fmt_cmd, CommandCategory::Other);
+
+    commands
+}
+
+fn get_go_commands() -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+
+    let test_cmd = TaskCommand {
+        name: "test".to_string(),
+        command: "go test ./...".to_string(),
+        description: Some("Run tests".to_string()),
+    };
+    commands.add_command(test_cmd, CommandCategory::Test);
+
+    let build_cmd = TaskCommand {
+        name: "build".to_string(),
+        command: "go build".to_string(),
+        description: Some("Build project".to_string()),
+    };
+    commands.add_command(build_cmd, CommandCategory::Build);
+
+    let run_cmd = TaskCommand {
+        name: "run".to_string(),
+        command: "go run .".to_string(),
+        description: Some("Run project".to_string()),
+    };
+    commands.add_command(run_cmd, CommandCategory::Other);
+
+    let fmt_cmd = TaskCommand {
+        name: "fmt".to_string(),
+        command: "go fmt ./...".to_string(),
+        description: Some("Format code".to_string()),
+    };
+    commands.add_command(fmt_cmd, CommandCategory::Other);
+
+    let vet_cmd = TaskCommand {
+        name: "vet".to_string(),
+        command: "go vet ./...".to_string(),
+        description: Some("Examine code for issues".to_string()),
+    };
+    commands.add_command(vet_cmd, CommandCategory::Other);
 
     commands
 }
