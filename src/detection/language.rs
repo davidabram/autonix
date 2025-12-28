@@ -783,58 +783,136 @@ mod tests {
     fn test_try_from_pathbuf_python_additional_files() {
         let path = PathBuf::from("Pipfile.lock");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::PipfileLock, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::PipfileLock,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("poetry.lock");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::PoetryLock, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::PoetryLock,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("setup.cfg");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::SetupCfg, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::SetupCfg,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("environment.yml");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::EnvironmentYml, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::EnvironmentYml,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn test_try_from_pathbuf_javascript_additional_files() {
         let path = PathBuf::from("bun.lock");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::BunLock, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::BunLock,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("bun.lockb");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::BunLockb, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::BunLockb,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("deno.lock");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::DenoLock, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::DenoLock,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("lock.json");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::LockJson, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::LockJson,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("deno.jsonc");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::DenoJsonc, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::DenoJsonc,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("jsconfig.json");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::JsConfig, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::JsConfig,
+                ..
+            }
+        ));
 
         let path = PathBuf::from(".node-version");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::NodeVersionFile, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::NodeVersionFile,
+                ..
+            }
+        ));
 
         let path = PathBuf::from(".bun-version");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::BunVersionFile, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::BunVersionFile,
+                ..
+            }
+        ));
 
         let path = PathBuf::from("pnpm-lock.yaml");
         let signal = LanguageDetectionSignal::try_from(path).unwrap();
-        assert!(matches!(signal, LanguageDetectionSignal::Strong { source: LanguageDetectionSource::PnpmLockYaml, .. }));
+        assert!(matches!(
+            signal,
+            LanguageDetectionSignal::Strong {
+                source: LanguageDetectionSource::PnpmLockYaml,
+                ..
+            }
+        ));
     }
 
     #[test]
