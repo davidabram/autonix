@@ -231,6 +231,8 @@ impl TaskRunnerFile {
             | TaskRunnerSource::RollupConfigTs => get_rollup_commands(),
             TaskRunnerSource::TurboJson => extract_turbo_commands(content),
             TaskRunnerSource::NxJson => extract_nx_commands(content),
+            TaskRunnerSource::ToxIni => extract_tox_commands(content),
+            TaskRunnerSource::NoxPy | TaskRunnerSource::Noxfile => extract_nox_commands(content),
             _ => TaskRunnerCommands::default(),
         }
     }
@@ -516,6 +518,169 @@ fn extract_nx_commands(content: &str) -> TaskRunnerCommands {
 
             commands.add_command(cmd, classify_command(target_name));
         }
+    }
+
+    commands
+}
+
+fn extract_tox_commands(content: &str) -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+    let env_re = Regex::new(r"^\[testenv(?::([a-zA-Z0-9_-]+))?\]").unwrap();
+    let lines: Vec<&str> = content.lines().collect();
+
+    for (idx, line) in lines.iter().enumerate() {
+        if let Some(caps) = env_re.captures(line.trim()) {
+            let env_name = caps.get(1).map(|m| m.as_str()).unwrap_or("default");
+
+            let commands_found: Vec<String> = lines[idx + 1..]
+                .iter()
+                .enumerate()
+                .find(|(_, l)| {
+                    let t = l.trim();
+                    !t.starts_with('[')
+                        && !t.is_empty()
+                        && !t.starts_with('#')
+                        && t.starts_with("commands")
+                })
+                .map(|(offset, cmd_line)| {
+                    let mut cmds = Vec::new();
+
+                    if let Some(val) = cmd_line
+                        .split_once('=')
+                        .map(|(_, v)| v.trim())
+                        .filter(|v| !v.is_empty())
+                    {
+                        cmds.push(val.to_string());
+                    }
+
+                    cmds.extend(
+                        lines[idx + 1 + offset + 1..]
+                            .iter()
+                            .take_while(|l| {
+                                let t = l.trim();
+                                (l.starts_with(' ') || l.starts_with('\t')) && !t.starts_with('[')
+                            })
+                            .filter_map(|l| {
+                                let t = l.trim();
+                                (!t.is_empty() && !t.starts_with('#')).then(|| t.to_string())
+                            }),
+                    );
+
+                    cmds
+                })
+                .unwrap_or_default();
+
+            if !commands_found.is_empty() {
+                let cmd = TaskCommand {
+                    name: env_name.to_string(),
+                    command: if env_name == "default" {
+                        "tox".to_string()
+                    } else {
+                        format!("tox -e {}", env_name)
+                    },
+                    description: None,
+                };
+
+                commands.add_command(
+                    cmd,
+                    if env_name == "default" || env_name.starts_with("py") {
+                        CommandCategory::Test
+                    } else {
+                        classify_command(env_name)
+                    },
+                );
+            }
+        }
+    }
+
+    if commands.test.is_empty() && commands.build.is_empty() && commands.other.is_empty() {
+        commands.add_command(
+            TaskCommand {
+                name: "default".to_string(),
+                command: "tox".to_string(),
+                description: Some("Run all tox environments".to_string()),
+            },
+            CommandCategory::Test,
+        );
+    }
+
+    commands
+}
+
+fn extract_nox_commands(content: &str) -> TaskRunnerCommands {
+    let mut commands = TaskRunnerCommands::default();
+    let func_re = Regex::new(r"^def\s+([a-zA-Z0-9_]+)\s*\(").unwrap();
+    let lines: Vec<&str> = content.lines().collect();
+
+    for (idx, line) in lines.iter().enumerate() {
+        if line.trim().starts_with("@nox.session") {
+            let decorator_text = lines[idx..]
+                .iter()
+                .map(|l| l.trim())
+                .take_while(|t| !t.starts_with("def "))
+                .scan(false, |done, t| {
+                    if *done {
+                        return None;
+                    }
+                    *done = t.contains(')');
+                    Some(t)
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            let explicit_name = decorator_text.split_once("name=").and_then(|(_, after)| {
+                let after = after.trim_start();
+                let quote = after.chars().next()?;
+                (quote == '"' || quote == '\'').then(|| {
+                    after
+                        .get(1..)?
+                        .find(quote)
+                        .map(|end| after[1..1 + end].to_string())
+                })?
+            });
+
+            let func_name = lines[idx..]
+                .iter()
+                .map(|l| l.trim())
+                .filter(|t| {
+                    !t.starts_with('@')
+                        && !t.is_empty()
+                        && !t.starts_with('#')
+                        && (!t.starts_with(')') || t.contains("def "))
+                })
+                .find_map(|t| func_re.captures(t)?.get(1).map(|m| m.as_str().to_string()));
+
+            if let Some(func_name) = func_name {
+                let session_name = explicit_name.as_ref().unwrap_or(&func_name);
+
+                let category = if session_name.starts_with("py") {
+                    // Nox-specific: py38, py39, etc. are test sessions >:(
+                    CommandCategory::Test
+                } else {
+                    classify_command(session_name)
+                };
+
+                commands.add_command(
+                    TaskCommand {
+                        name: session_name.to_string(),
+                        command: format!("nox -s {}", session_name),
+                        description: None,
+                    },
+                    category,
+                );
+            }
+        }
+    }
+
+    if commands.test.is_empty() && commands.build.is_empty() && commands.other.is_empty() {
+        commands.add_command(
+            TaskCommand {
+                name: "default".to_string(),
+                command: "nox".to_string(),
+                description: Some("Run all nox sessions".to_string()),
+            },
+            CommandCategory::Test,
+        );
     }
 
     commands
@@ -1199,5 +1364,480 @@ fmt:
         assert_eq!(detection.commands.build.len(), 1);
         assert_eq!(detection.commands.test.len(), 1);
         assert_eq!(detection.commands.other.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_tox_commands_basic() {
+        let content = r#"
+[testenv]
+commands = pytest tests/
+"#;
+        let commands = extract_tox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "default");
+        assert_eq!(commands.test[0].command, "tox");
+        assert_eq!(commands.test[0].description, None);
+    }
+
+    #[test]
+    fn test_extract_tox_commands_multiple_envs() {
+        let content = r#"
+[testenv:py39]
+commands = pytest tests/
+
+[testenv:py310]
+commands = pytest --cov tests/
+
+[testenv:lint]
+commands =
+    flake8 src/
+    mypy src/
+"#;
+        let commands = extract_tox_commands(content);
+        assert_eq!(commands.test.len(), 2);
+        assert_eq!(commands.other.len(), 1);
+
+        let py39_cmd = commands.test.iter().find(|c| c.name == "py39").unwrap();
+        assert_eq!(py39_cmd.command, "tox -e py39");
+        assert_eq!(py39_cmd.description, None);
+
+        let py310_cmd = commands.test.iter().find(|c| c.name == "py310").unwrap();
+        assert_eq!(py310_cmd.command, "tox -e py310");
+        assert_eq!(py310_cmd.description, None);
+
+        let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
+        assert_eq!(lint_cmd.command, "tox -e lint");
+        assert_eq!(lint_cmd.description, None);
+    }
+
+    #[test]
+    fn test_extract_tox_commands_multiline() {
+        let content = r#"
+[testenv]
+commands =
+    pytest --verbose
+    coverage report
+    mypy src/
+"#;
+        let commands = extract_tox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "default");
+        assert_eq!(commands.test[0].description, None);
+    }
+
+    #[test]
+    fn test_extract_tox_commands_empty() {
+        let content = r#"
+[tox]
+envlist = py39,py310
+
+[testenv]
+deps = pytest
+"#;
+        let commands = extract_tox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "default");
+        assert_eq!(commands.test[0].command, "tox");
+    }
+
+    #[test]
+    fn test_extract_tox_commands_with_comments() {
+        let content = r#"
+# This is a comment
+[testenv:py39]
+# Another comment
+commands = pytest tests/
+    # Inline comment
+    coverage report
+"#;
+        let commands = extract_tox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "py39");
+        assert_eq!(commands.test[0].description, None);
+    }
+
+    #[test]
+    fn test_extract_tox_commands_build_env() {
+        let content = r#"
+[testenv:build]
+commands = python -m build
+
+[testenv:package]
+commands =
+    python setup.py sdist
+    python setup.py bdist_wheel
+"#;
+        let commands = extract_tox_commands(content);
+        assert_eq!(commands.build.len(), 2);
+
+        let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
+        assert_eq!(build_cmd.command, "tox -e build");
+        assert_eq!(build_cmd.description, None);
+
+        let package_cmd = commands.build.iter().find(|c| c.name == "package").unwrap();
+        assert_eq!(package_cmd.command, "tox -e package");
+        assert_eq!(package_cmd.description, None);
+    }
+
+    #[test]
+    fn test_try_from_tox_ini() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "tox.ini",
+            r#"
+[testenv]
+commands = pytest tests/
+"#,
+        );
+        let result = TaskRunnerFile::try_from(path);
+        assert!(result.is_ok());
+        let file = result.unwrap();
+        assert_eq!(file.task_runner, TaskRunner::Tox);
+        assert_eq!(file.source, TaskRunnerSource::ToxIni);
+    }
+
+    #[test]
+    fn test_tox_file_to_detection() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "tox.ini",
+            r#"
+[testenv:py39]
+commands = pytest tests/
+
+[testenv:py310]
+commands = pytest --cov tests/
+
+[testenv:lint]
+commands = flake8 src/
+"#,
+        );
+        let file = TaskRunnerFile::try_from(path).unwrap();
+        let detection = TaskRunnerDetection::from(file);
+
+        assert_eq!(detection.task_runner, TaskRunner::Tox);
+        assert_eq!(detection.commands.test.len(), 2);
+        assert_eq!(detection.commands.other.len(), 1);
+
+        assert!(
+            detection
+                .commands
+                .test
+                .iter()
+                .any(|c| c.name == "py39" && c.command == "tox -e py39")
+        );
+        assert!(
+            detection
+                .commands
+                .test
+                .iter()
+                .any(|c| c.name == "py310" && c.command == "tox -e py310")
+        );
+        assert!(
+            detection
+                .commands
+                .other
+                .iter()
+                .any(|c| c.name == "lint" && c.command == "tox -e lint")
+        );
+    }
+
+    #[test]
+    fn test_extract_nox_commands_basic() {
+        let content = r#"
+import nox
+
+@nox.session
+def test(session):
+    session.install("pytest")
+    session.run("pytest", "tests/")
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "nox -s test");
+    }
+
+    #[test]
+    fn test_extract_nox_commands_multiple_sessions() {
+        let content = r#"
+import nox
+
+@nox.session
+def test(session):
+    session.run("pytest")
+
+@nox.session
+def lint(session):
+    session.run("flake8")
+
+@nox.session
+def build(session):
+    session.run("python", "-m", "build")
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.build.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+
+        assert_eq!(commands.test[0].name, "test");
+        assert_eq!(commands.test[0].command, "nox -s test");
+
+        let build_cmd = commands.build.iter().find(|c| c.name == "build").unwrap();
+        assert_eq!(build_cmd.command, "nox -s build");
+
+        let lint_cmd = commands.other.iter().find(|c| c.name == "lint").unwrap();
+        assert_eq!(lint_cmd.command, "nox -s lint");
+    }
+
+    #[test]
+    fn test_extract_nox_commands_with_explicit_names() {
+        let content = r#"
+import nox
+
+@nox.session(name="unit-tests")
+def unit_tests(session):
+    session.run("pytest", "tests/unit/")
+
+@nox.session(name="integration-tests")
+def integration_tests(session):
+    session.run("pytest", "tests/integration/")
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 2);
+
+        assert!(
+            commands
+                .test
+                .iter()
+                .any(|c| c.name == "unit-tests" && c.command == "nox -s unit-tests")
+        );
+        assert!(
+            commands
+                .test
+                .iter()
+                .any(|c| c.name == "integration-tests" && c.command == "nox -s integration-tests")
+        );
+    }
+
+    #[test]
+    fn test_extract_nox_commands_python_versions() {
+        let content = r#"
+import nox
+
+@nox.session
+def py39(session):
+    session.run("pytest")
+
+@nox.session
+def py310(session):
+    session.run("pytest")
+
+@nox.session
+def py311(session):
+    session.run("pytest")
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 3);
+
+        assert!(
+            commands
+                .test
+                .iter()
+                .any(|c| c.name == "py39" && c.command == "nox -s py39")
+        );
+        assert!(
+            commands
+                .test
+                .iter()
+                .any(|c| c.name == "py310" && c.command == "nox -s py310")
+        );
+        assert!(
+            commands
+                .test
+                .iter()
+                .any(|c| c.name == "py311" && c.command == "nox -s py311")
+        );
+    }
+
+    #[test]
+    fn test_extract_nox_commands_with_comments() {
+        let content = r#"
+import nox
+
+# This is a test session
+@nox.session
+def test(session):
+    """Run the test suite."""
+    session.run("pytest")
+
+# Linting session
+@nox.session
+def lint(session):
+    session.run("flake8")
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+    }
+
+    #[test]
+    fn test_extract_nox_commands_empty() {
+        let content = r#"
+import nox
+
+# No sessions defined yet
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "default");
+        assert_eq!(commands.test[0].command, "nox");
+    }
+
+    #[test]
+    fn test_extract_nox_commands_with_parameters() {
+        let content = r#"
+import nox
+
+@nox.session(python=["3.9", "3.10", "3.11"])
+def tests(session):
+    session.run("pytest")
+
+@nox.session(python="3.10", name="coverage")
+def run_coverage(session):
+    session.run("pytest", "--cov")
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.other.len(), 1);
+
+        assert!(
+            commands
+                .test
+                .iter()
+                .any(|c| c.name == "tests" && c.command == "nox -s tests")
+        );
+        assert!(
+            commands
+                .other
+                .iter()
+                .any(|c| c.name == "coverage" && c.command == "nox -s coverage")
+        );
+    }
+
+    #[test]
+    fn test_extract_nox_commands_complex_decorator() {
+        let content = r#"
+import nox
+
+@nox.session(
+    python=["3.9", "3.10", "3.11"],
+    name="test-all",
+    reuse_venv=True
+)
+def test_all_pythons(session):
+    session.run("pytest")
+"#;
+        let commands = extract_nox_commands(content);
+        assert_eq!(commands.test.len(), 1);
+        assert_eq!(commands.test[0].name, "test-all");
+        assert_eq!(commands.test[0].command, "nox -s test-all");
+    }
+
+    #[test]
+    fn test_try_from_nox_py() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "nox.py",
+            r#"
+import nox
+
+@nox.session
+def test(session):
+    session.run("pytest")
+"#,
+        );
+        let result = TaskRunnerFile::try_from(path);
+        assert!(result.is_ok());
+        let file = result.unwrap();
+        assert_eq!(file.task_runner, TaskRunner::Nox);
+        assert_eq!(file.source, TaskRunnerSource::NoxPy);
+    }
+
+    #[test]
+    fn test_try_from_noxfile() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "noxfile.py",
+            r#"
+import nox
+
+@nox.session
+def test(session):
+    session.run("pytest")
+"#,
+        );
+        let result = TaskRunnerFile::try_from(path);
+        assert!(result.is_ok());
+        let file = result.unwrap();
+        assert_eq!(file.task_runner, TaskRunner::Nox);
+        assert_eq!(file.source, TaskRunnerSource::Noxfile);
+    }
+
+    #[test]
+    fn test_nox_file_to_detection() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(
+            &dir,
+            "noxfile.py",
+            r#"
+import nox
+
+@nox.session
+def test(session):
+    session.run("pytest")
+
+@nox.session
+def lint(session):
+    session.run("flake8")
+
+@nox.session
+def build(session):
+    session.run("python", "-m", "build")
+"#,
+        );
+        let file = TaskRunnerFile::try_from(path).unwrap();
+        let detection = TaskRunnerDetection::from(file);
+
+        assert_eq!(detection.task_runner, TaskRunner::Nox);
+        assert_eq!(detection.commands.test.len(), 1);
+        assert_eq!(detection.commands.build.len(), 1);
+        assert_eq!(detection.commands.other.len(), 1);
+
+        assert!(
+            detection
+                .commands
+                .test
+                .iter()
+                .any(|c| c.name == "test" && c.command == "nox -s test")
+        );
+        assert!(
+            detection
+                .commands
+                .build
+                .iter()
+                .any(|c| c.name == "build" && c.command == "nox -s build")
+        );
+        assert!(
+            detection
+                .commands
+                .other
+                .iter()
+                .any(|c| c.name == "lint" && c.command == "nox -s lint")
+        );
     }
 }

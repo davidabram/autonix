@@ -106,8 +106,45 @@
     {
       "commands": {
         "build": [],
-        "other": [],
-        "test": []
+        "other": [
+          {
+            "command": "tox -e docs",
+            "description": null,
+            "name": "docs"
+          },
+          {
+            "command": "tox -e style",
+            "description": null,
+            "name": "style"
+          },
+          {
+            "command": "tox -e typing",
+            "description": null,
+            "name": "typing"
+          },
+          {
+            "command": "tox -e update-actions",
+            "description": null,
+            "name": "update-actions"
+          },
+          {
+            "command": "tox -e update-pre_commit",
+            "description": null,
+            "name": "update-pre_commit"
+          },
+          {
+            "command": "tox -e update-requirements",
+            "description": null,
+            "name": "update-requirements"
+          }
+        ],
+        "test": [
+          {
+            "command": "tox",
+            "description": null,
+            "name": "default"
+          }
+        ]
       },
       "path": "./tox.ini",
       "source": "ToxIni",
