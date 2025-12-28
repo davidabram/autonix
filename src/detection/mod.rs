@@ -70,13 +70,63 @@ impl DetectionEngine {
     }
 }
 
+const IGNORED_DIR_BASENAMES: &[&str] = &[
+    // VCS
+    ".git",
+    ".hg",
+    ".svn",
+    // Node
+    "node_modules",
+    ".yarn",
+    ".pnpm-store",
+    ".turbo",
+    ".nx",
+    ".next",
+    ".nuxt",
+    ".svelte-kit",
+    ".parcel-cache",
+    // Rust
+    "target",
+    // Python
+    ".venv",
+    "venv",
+    "env",
+    "__pycache__",
+    ".tox",
+    ".nox",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    // General build/artifacts
+    "dist",
+    "build",
+    "out",
+    "coverage",
+    ".cache",
+    ".direnv",
+    ".idea",
+    ".vscode",
+    "vendor",
+    ".terraform",
+];
+
 struct DirectoryIterator(VecDeque<PathBuf>);
+
+impl DirectoryIterator {
+    fn should_ignore_dir(path: &Path) -> bool {
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| IGNORED_DIR_BASENAMES.contains(&name))
+            .unwrap_or(false)
+    }
+}
 
 impl Iterator for DirectoryIterator {
     type Item = PathBuf;
     fn next(&mut self) -> Option<Self::Item> {
         self.0.pop_front().inspect(|p| {
             if p.is_dir()
+                && !Self::should_ignore_dir(p)
                 && let Ok(entries) = p.read_dir()
             {
                 entries
@@ -353,5 +403,42 @@ rust-version = "1.70.0"
             .unwrap();
         assert!(!makefile_tr.commands.test.is_empty());
         assert!(!makefile_tr.commands.build.is_empty());
+    }
+
+    #[test]
+    fn test_traversal_ignores_node_modules() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join("node_modules")).unwrap();
+        fs::create_dir(dir.path().join("node_modules/foo")).unwrap();
+        create_temp_file(&dir, "node_modules/foo/package.json", r#"{"name": "foo"}"#);
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+
+        assert_eq!(metadata.languages.len(), 0);
+        assert_eq!(metadata.task_runners.len(), 0);
+    }
+
+    #[test]
+    fn test_traversal_ignores_common_dirs() {
+        let dir = TempDir::new().unwrap();
+
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        create_temp_file(&dir, ".git/config", "");
+
+        fs::create_dir(dir.path().join("target")).unwrap();
+        create_temp_file(&dir, "target/Cargo.toml", r#"[package]\nname = "test""#);
+
+        fs::create_dir(dir.path().join(".venv")).unwrap();
+        create_temp_file(&dir, ".venv/setup.py", "");
+
+        fs::create_dir(dir.path().join("dist")).unwrap();
+        create_temp_file(&dir, "dist/package.json", "{}");
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+
+        assert_eq!(metadata.languages.len(), 0);
+        assert_eq!(metadata.task_runners.len(), 0);
     }
 }
