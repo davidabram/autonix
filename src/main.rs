@@ -56,8 +56,11 @@ fn main() {
     match args.command {
         Some(Command::Generate { path }) => {
             let metadata = engine.detect_with_scope(&path, detect_scope);
-            let flake = generate_dev_flake(&metadata, &path);
-            print!("{flake}");
+            if let Err(e) = write_dev_flake(&metadata, &path) {
+                eprintln!("Failed to write flake files: {e}");
+                std::process::exit(1);
+            }
+            println!("Generated flake structure in {}", path.display());
         }
         None => {
             let metadata = engine.detect_with_scope(&args.path, detect_scope);

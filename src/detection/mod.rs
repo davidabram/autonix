@@ -463,7 +463,6 @@ rust-version = "1.70.0"
                 .any(|tr| matches!(tr.task_runner, TaskRunner::NpmScripts))
         );
 
-        // Verify commands were extracted
         let makefile_tr = metadata
             .task_runners
             .iter()

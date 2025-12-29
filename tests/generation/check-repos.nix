@@ -6,7 +6,9 @@ let
 
   mkRepoCheck = repo:
     let
-      goldenFile = ./golden + "/${repo.name}/flake.nix";
+      goldenDir = ./golden + "/${repo.name}";
+      goldenFlake = goldenDir + "/flake.nix";
+      goldenAutonixDir = goldenDir + "/.autonix";
       repoSrc = pkgs.fetchFromGitHub {
         owner = repo.owner;
         repo = repo.repo;
@@ -15,7 +17,7 @@ let
       };
     in
     pkgs.runCommand "check-generate-${repo.name}" {
-      nativeBuildInputs = [ cli pkgs.python3 ];
+      nativeBuildInputs = [ cli pkgs.python3 pkgs.diffutils ];
       meta.description = "Golden test (generation) for ${repo.owner}/${repo.repo}@${repo.rev}";
     } ''
       set -euo pipefail
@@ -29,7 +31,7 @@ let
       chmod -R u+w "$WORKSPACE/${repo.name}"
 
       echo "Running: autonix --detect-scope root generate ${repo.name}"
-      if ! ${cli}/bin/autonix --detect-scope root generate "$WORKSPACE/${repo.name}" > "$TMPDIR/actual.nix" 2> "$TMPDIR/stderr.log"; then
+      if ! ${cli}/bin/autonix --detect-scope root generate "$WORKSPACE/${repo.name}" > "$TMPDIR/stdout.log" 2> "$TMPDIR/stderr.log"; then
         echo "CLI execution failed for ${repo.name}"
         cat "$TMPDIR/stderr.log"
         exit 1
@@ -52,27 +54,48 @@ sys.stdout.write(normalized)
 PY
       }
 
-      normalize "$TMPDIR/actual.nix" > "$TMPDIR/actual-normalized.nix"
-      normalize ${goldenFile} > "$TMPDIR/expected-normalized.nix"
+      normalize "$WORKSPACE/${repo.name}/flake.nix" > "$TMPDIR/actual-flake-normalized.nix"
+      normalize ${goldenFlake} > "$TMPDIR/expected-flake-normalized.nix"
 
-      if ! diff -u "$TMPDIR/expected-normalized.nix" "$TMPDIR/actual-normalized.nix" > "$TMPDIR/diff.txt"; then
-        echo "Output does not match golden file for ${repo.name}"
+      if ! diff -u "$TMPDIR/expected-flake-normalized.nix" "$TMPDIR/actual-flake-normalized.nix" > "$TMPDIR/flake-diff.txt"; then
+        echo "flake.nix does not match golden file for ${repo.name}"
         echo ""
-        echo "Expected (${goldenFile}):"
-        cat "$TMPDIR/expected-normalized.nix"
+        echo "Expected (${goldenFlake}):"
+        cat "$TMPDIR/expected-flake-normalized.nix"
         echo ""
         echo "Actual:"
-        cat "$TMPDIR/actual-normalized.nix"
+        cat "$TMPDIR/actual-flake-normalized.nix"
         echo ""
         echo "Diff:"
-        cat "$TMPDIR/diff.txt"
+        cat "$TMPDIR/flake-diff.txt"
+        exit 1
+      fi
+
+      if [ ! -d ${goldenAutonixDir} ]; then
+        echo "Missing golden .autonix directory: ${goldenAutonixDir}"
+        exit 1
+      fi
+
+      if [ ! -d "$WORKSPACE/${repo.name}/.autonix" ]; then
+        echo "Missing generated .autonix directory for ${repo.name}"
+        exit 1
+      fi
+
+      if ! diff -ru ${goldenAutonixDir} "$WORKSPACE/${repo.name}/.autonix" > "$TMPDIR/autonix-diff.txt"; then
+        echo ".autonix/ does not match golden directory for ${repo.name}"
+        echo ""
+        echo "Diff:"
+        cat "$TMPDIR/autonix-diff.txt"
         exit 1
       fi
 
       mkdir -p $out
-      cp "$TMPDIR/actual.nix" $out/output.nix
+      cp "$TMPDIR/stdout.log" $out/stdout.log
       cp "$TMPDIR/stderr.log" $out/stderr.log
-      cp ${goldenFile} $out/expected.nix
+      cp "$WORKSPACE/${repo.name}/flake.nix" $out/flake.nix
+      cp ${goldenFlake} $out/golden-flake.nix
+      cp -r "$WORKSPACE/${repo.name}/.autonix" $out/actual-autonix
+      cp -r ${goldenAutonixDir} $out/golden-autonix
 
       python3 -c 'import json,sys; print(json.dumps({"repository": "${repo.name}", "source": "${repo.owner}/${repo.repo}", "revision": "${repo.rev}", "status": "passed", "test_type": "golden-generation"}, indent=2))' > $out/summary.json
 

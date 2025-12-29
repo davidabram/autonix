@@ -23,6 +23,36 @@ pub enum PackageManager {
     Go,
 }
 
+impl PackageManager {
+    pub fn is_js_package_manager(&self) -> bool {
+        matches!(
+            self,
+            PackageManager::Npm | PackageManager::Pnpm | PackageManager::Yarn | PackageManager::Bun
+        )
+    }
+
+    pub fn command_name(&self) -> Option<&'static str> {
+        match self {
+            PackageManager::Npm => Some("npm"),
+            PackageManager::Pnpm => Some("pnpm"),
+            PackageManager::Yarn => Some("yarn"),
+            PackageManager::Bun => Some("bun"),
+            PackageManager::Deno => Some("deno"),
+            _ => None,
+        }
+    }
+
+    pub fn run_script(&self, script_name: &str) -> Option<String> {
+        match self {
+            PackageManager::Npm => Some(format!("npm run {script_name}")),
+            PackageManager::Pnpm => Some(format!("pnpm run {script_name}")),
+            PackageManager::Yarn => Some(format!("yarn run {script_name}")),
+            PackageManager::Bun => Some(format!("bun run {script_name}")),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum PackageManagerSource {
     // JavaScript
@@ -459,6 +489,38 @@ mod tests {
         let mut file = fs::File::create(&path).unwrap();
         file.write_all(content.as_bytes()).unwrap();
         path
+    }
+
+    mod helpers {
+        use super::*;
+
+        #[test]
+        fn test_is_js_package_manager() {
+            assert!(PackageManager::Npm.is_js_package_manager());
+            assert!(PackageManager::Pnpm.is_js_package_manager());
+            assert!(PackageManager::Yarn.is_js_package_manager());
+            assert!(PackageManager::Bun.is_js_package_manager());
+
+            assert!(!PackageManager::Deno.is_js_package_manager());
+            assert!(!PackageManager::Poetry.is_js_package_manager());
+            assert!(!PackageManager::Cargo.is_js_package_manager());
+        }
+
+        #[test]
+        fn test_command_name() {
+            assert_eq!(PackageManager::Npm.command_name(), Some("npm"));
+            assert_eq!(PackageManager::Deno.command_name(), Some("deno"));
+            assert_eq!(PackageManager::Cargo.command_name(), None);
+        }
+
+        #[test]
+        fn test_run_script() {
+            assert_eq!(
+                PackageManager::Pnpm.run_script("test"),
+                Some("pnpm run test".to_string())
+            );
+            assert_eq!(PackageManager::Cargo.run_script("test"), None);
+        }
     }
 
     mod javascript {

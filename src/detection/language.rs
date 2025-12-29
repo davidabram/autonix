@@ -9,6 +9,17 @@ pub enum Language {
     JavaScript,
 }
 
+impl Language {
+    pub fn dir_name(&self) -> &'static str {
+        match self {
+            Language::Go => "golang",
+            Language::Python => "python",
+            Language::JavaScript => "nodejs",
+            Language::Rust => "rust",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub enum LanguageDetectionSource {
     //Go

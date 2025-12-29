@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
+    fmt::Write as _,
     fs,
     path::{Path, PathBuf},
 };
@@ -10,9 +11,42 @@ use crate::detection::{
     CommandExecutable, Language, PackageManager, ProjectMetadata, SemanticVersion, TaskCommand,
     TaskRunner, VersionConstraint, VersionInfo, VersionSource,
 };
+use crate::generation::constants;
+use crate::generation::nix_builder;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CheckCategory {
+    Test,
+    Build,
+}
+
+#[derive(Debug, Clone)]
+pub struct LanguagePackages {
+    pub language: Language,
+    pub content: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckFile {
+    pub language: Option<Language>,
+    pub category: CheckCategory,
+    pub content: String,
+    pub relative_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub struct GeneratedFlake {
+    pub main_flake: String,
+    pub devshell: String,
+    pub language_packages: Vec<LanguagePackages>,
+    pub check_files: Vec<CheckFile>,
+    pub rust_overlay: Option<String>,
+}
 
 #[derive(Debug, Clone)]
 struct CheckSpec {
+    language: Option<Language>,
+    category: CheckCategory,
     key: String,
     derivation_name: String,
     display: String,
@@ -21,8 +55,16 @@ struct CheckSpec {
     workdir: String,
 }
 
-pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> String {
-    let languages = detected_languages(metadata);
+#[derive(Debug, Clone)]
+struct CommandInfo {
+    required_exec: String,
+    command: String,
+    workdir: String,
+    display: String,
+}
+
+pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> GeneratedFlake {
+    let detected_languages = detected_languages(metadata);
 
     let task_runners: HashSet<TaskRunner> = metadata
         .task_runners
@@ -30,7 +72,7 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> String {
         .map(|tr| tr.task_runner)
         .collect();
 
-    let mut need_node = languages.contains(&Language::JavaScript)
+    let mut need_node = detected_languages.contains(&Language::JavaScript)
         || task_runners.iter().any(|tr| {
             matches!(
                 tr,
@@ -44,18 +86,28 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> String {
             )
         });
 
-    let mut need_python = languages.contains(&Language::Python)
+    let mut need_python = detected_languages.contains(&Language::Python)
         || task_runners
             .iter()
             .any(|tr| matches!(tr, TaskRunner::Tox | TaskRunner::Nox | TaskRunner::Invoke));
 
-    let need_go = languages.contains(&Language::Go);
-    let need_rust = languages.contains(&Language::Rust);
+    let need_go =
+        detected_languages.contains(&Language::Go) || task_runners.contains(&TaskRunner::GoTask);
+    let need_rust =
+        detected_languages.contains(&Language::Rust) || task_runners.contains(&TaskRunner::Cargo);
 
-    let go_version = best_version_info(metadata, Language::Go, GO_VERSION_SOURCES);
-    let python_version = best_version_info(metadata, Language::Python, PYTHON_VERSION_SOURCES);
-    let node_version = best_version_info(metadata, Language::JavaScript, NODE_VERSION_SOURCES);
-    let rust_version = best_version_info(metadata, Language::Rust, RUST_VERSION_SOURCES);
+    let go_version = best_version_info(metadata, Language::Go, constants::GO_VERSION_SOURCES);
+    let python_version = best_version_info(
+        metadata,
+        Language::Python,
+        constants::PYTHON_VERSION_SOURCES,
+    );
+    let node_version = best_version_info(
+        metadata,
+        Language::JavaScript,
+        constants::NODE_VERSION_SOURCES,
+    );
+    let rust_version = best_version_info(metadata, Language::Rust, constants::RUST_VERSION_SOURCES);
 
     let go_want_attr = go_version
         .and_then(|v| v.parsed.as_ref())
@@ -79,7 +131,7 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> String {
 
     let mut required_package_managers = detected_package_managers(metadata);
 
-    let checks = collect_checks(
+    let checks_by_lang = collect_checks(
         metadata,
         root,
         &mut required_package_managers,
@@ -87,26 +139,108 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> String {
         &mut need_python,
     );
 
-    let mut required_node_tools: BTreeSet<&'static str> = BTreeSet::new();
+    let required_node_tools = required_node_tools(&task_runners);
+    let required_task_runner_tools = required_task_runner_tools(metadata);
+
+    let uses_rust_overlay = need_rust;
+
+    let go_notice = go_notice(go_version, go_want_attr.as_deref());
+    let python_notice = python_notice(python_version, python_want_attr.as_deref());
+    let node_notice = node_notice(node_version, node_want_attr.as_deref());
+    let rust_notice = rust_notice(need_rust, rust_version, rust_want_version.as_deref());
+
+    let mut language_packages = Vec::new();
+
+    if need_go {
+        let want_go_attr = go_want_attr.as_deref().unwrap_or("go");
+        language_packages.push(LanguagePackages {
+            language: Language::Go,
+            content: generate_golang_packages_nix(want_go_attr, go_notice.as_deref()),
+        });
+    }
+
+    if need_python {
+        let want_python_attr = python_want_attr.as_deref().unwrap_or("python3");
+        language_packages.push(LanguagePackages {
+            language: Language::Python,
+            content: generate_python_packages_nix(
+                want_python_attr,
+                python_notice.as_deref(),
+                &required_package_managers,
+                &required_task_runner_tools,
+            ),
+        });
+    }
+
+    if need_node {
+        let want_node_attr = node_want_attr.as_deref().unwrap_or("nodejs");
+        language_packages.push(LanguagePackages {
+            language: Language::JavaScript,
+            content: generate_nodejs_packages_nix(
+                want_node_attr,
+                node_notice.as_deref(),
+                &required_package_managers,
+                &required_node_tools,
+            ),
+        });
+    }
+
+    if need_rust {
+        language_packages.push(LanguagePackages {
+            language: Language::Rust,
+            content: generate_rust_packages_nix(
+                rust_want_version.as_deref(),
+                rust_notice.as_deref(),
+            ),
+        });
+    }
+
+    let rust_overlay = uses_rust_overlay.then(generate_rust_overlay_nix);
+
+    let devshell = generate_devshell_nix();
+    let check_files = generate_check_files(&checks_by_lang);
+
+    let main_flake = generate_main_flake(
+        need_go,
+        need_python,
+        need_node,
+        need_rust,
+        uses_rust_overlay,
+        &check_files,
+        &required_task_runner_tools,
+    );
+
+    GeneratedFlake {
+        main_flake,
+        devshell,
+        language_packages,
+        check_files,
+        rust_overlay,
+    }
+}
+
+fn required_node_tools(task_runners: &HashSet<TaskRunner>) -> BTreeSet<&'static str> {
+    let mut required: BTreeSet<&'static str> = BTreeSet::new();
+
     for task_runner in task_runners {
         match task_runner {
             TaskRunner::Vite => {
-                required_node_tools.insert("vite");
+                required.insert(constants::NODE_TOOL_VITE);
             }
             TaskRunner::Webpack => {
-                required_node_tools.insert("webpack");
+                required.insert(constants::NODE_TOOL_WEBPACK);
             }
             TaskRunner::Rspack => {
-                required_node_tools.insert("rspack");
+                required.insert(constants::NODE_TOOL_RSPACK);
             }
             TaskRunner::Rollup => {
-                required_node_tools.insert("rollup");
+                required.insert(constants::NODE_TOOL_ROLLUP);
             }
             TaskRunner::Turbo => {
-                required_node_tools.insert("turbo");
+                required.insert(constants::NODE_TOOL_TURBO);
             }
             TaskRunner::Nx => {
-                required_node_tools.insert("nx");
+                required.insert(constants::NODE_TOOL_NX);
             }
             TaskRunner::NpmScripts
             | TaskRunner::Make
@@ -120,26 +254,31 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> String {
         }
     }
 
-    let mut required_task_runner_tools: BTreeSet<&'static str> = BTreeSet::new();
-    for tr in metadata.task_runners.iter().map(|t| t.task_runner) {
-        match tr {
+    required
+}
+
+fn required_task_runner_tools(metadata: &ProjectMetadata) -> BTreeSet<&'static str> {
+    let mut required: BTreeSet<&'static str> = BTreeSet::new();
+
+    for task_runner in metadata.task_runners.iter().map(|t| t.task_runner) {
+        match task_runner {
             TaskRunner::Make => {
-                required_task_runner_tools.insert("gnumake");
+                required.insert(constants::GENERIC_TOOL_GNUMAKE);
             }
             TaskRunner::Just => {
-                required_task_runner_tools.insert("just");
+                required.insert(constants::GENERIC_TOOL_JUST);
             }
             TaskRunner::Task => {
-                required_task_runner_tools.insert("go-task");
+                required.insert(constants::GENERIC_TOOL_GO_TASK);
             }
             TaskRunner::Tox => {
-                required_task_runner_tools.insert("tox");
+                required.insert(constants::PYTHON_TOOL_TOX);
             }
             TaskRunner::Nox => {
-                required_task_runner_tools.insert("nox");
+                required.insert(constants::PYTHON_TOOL_NOX);
             }
             TaskRunner::Invoke => {
-                required_task_runner_tools.insert("invoke");
+                required.insert(constants::PYTHON_TOOL_INVOKE);
             }
             TaskRunner::GoTask | TaskRunner::Cargo | TaskRunner::NpmScripts => {}
             TaskRunner::Vite
@@ -151,423 +290,684 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> String {
         }
     }
 
-    let mut notices = Vec::new();
-    if let Some(version) = go_version
-        && let Some(parsed) = &version.parsed
-    {
-        let requested = format!("{} (from {:?})", version.raw, version.source);
-        let selected = go_want_attr
-            .as_deref()
-            .unwrap_or("go (unversioned; go_* not inferred)");
-        let note = if parsed.patch.is_some() {
-            "note: nixpkgs provides Go by major/minor (patch may differ)"
-        } else {
-            ""
-        };
-        let msg = format!("Go: requested {requested} -> want {selected} {note}")
-            .trim()
-            .to_string();
-        notices.push(msg);
-    }
-
-    if let Some(version) = python_version
-        && let Some(parsed) = &version.parsed
-    {
-        let requested = format!("{} (from {:?})", version.raw, version.source);
-        let selected = python_want_attr
-            .as_deref()
-            .unwrap_or("python3 (unversioned; pythonXY not inferred)");
-        let note =
-            if parsed.patch.is_some() || !matches!(parsed.constraint, VersionConstraint::Exact) {
-                "note: nixpkgs provides Python by major/minor (patch may differ)"
-            } else {
-                ""
-            };
-        let msg = format!("Python: requested {requested} -> want {selected} {note}")
-            .trim()
-            .to_string();
-        notices.push(msg);
-    }
-
-    if let Some(version) = node_version
-        && let Some(parsed) = &version.parsed
-    {
-        let requested = format!("{} (from {:?})", version.raw, version.source);
-        let selected = node_want_attr
-            .as_deref()
-            .unwrap_or("nodejs (unversioned; nodejs_* not inferred)");
-        let note = if parsed.minor.is_some() || parsed.patch.is_some() {
-            "note: nixpkgs provides Node.js by major (minor/patch may differ)"
-        } else {
-            ""
-        };
-        let msg = format!("Node: requested {requested} -> want {selected} {note}")
-            .trim()
-            .to_string();
-        notices.push(msg);
-    }
-
-    if need_rust {
-        if let Some(v) = rust_want_version.as_deref() {
-            notices.push(format!(
-                "Rust: requested {} -> try rust-bin.stable.{v} (fallback latest)",
-                rust_version
-                    .map(|vi| format!("{} (from {:?})", vi.raw, vi.source))
-                    .unwrap_or_else(|| "(unknown)".to_string())
-            ));
-        } else if let Some(vi) = rust_version {
-            notices.push(format!(
-                "Rust: detected {} (from {:?}) -> using rust-bin.stable.latest (not exact pin)",
-                vi.raw, vi.source
-            ));
-        }
-    }
-
-    let mut output = String::new();
-
-    let uses_rust_overlay = need_rust;
-
-    output.push_str("{\n");
-    output.push_str("  description = \"Generated by autonix (devShells.default + checks)\";\n\n");
-    output.push_str("  inputs = {\n");
-    output.push_str("    nixpkgs.url = \"github:NixOS/nixpkgs/nixos-unstable\";\n");
-    output.push_str("    flake-utils.url = \"github:numtide/flake-utils\";\n");
-    if uses_rust_overlay {
-        output.push_str("    rust-overlay = {\n");
-        output.push_str("      url = \"github:oxalica/rust-overlay\";\n");
-        output.push_str("      inputs.nixpkgs.follows = \"nixpkgs\";\n");
-        output.push_str("    };\n");
-    }
-    output.push_str("  };\n\n");
-
-    output.push_str("  outputs = { self, nixpkgs, flake-utils");
-    if uses_rust_overlay {
-        output.push_str(", rust-overlay");
-    }
-    output.push_str(" }: \n");
-    output.push_str("    flake-utils.lib.eachDefaultSystem (system:\n");
-    output.push_str("      let\n");
-
-    if uses_rust_overlay {
-        output.push_str("        overlays = [ (import rust-overlay) ];\n");
-        output.push_str("        pkgs = import nixpkgs { inherit system overlays; };\n");
-    } else {
-        output.push_str("        pkgs = import nixpkgs { inherit system; };\n");
-    }
-    output.push_str("        lib = pkgs.lib;\n\n");
-
-    if need_go {
-        let want_go_attr = go_want_attr.as_deref().unwrap_or("go");
-        writeln_nix_string(&mut output, "        wantGoAttr", want_go_attr);
-        output.push_str(
-            "        goAttr = if builtins.hasAttr wantGoAttr pkgs then wantGoAttr else \"go\";\n",
-        );
-        output.push_str("        go = pkgs.${goAttr};\n\n");
-    }
-
-    if need_python {
-        let want_python_attr = python_want_attr.as_deref().unwrap_or("python3");
-        writeln_nix_string(&mut output, "        wantPythonAttr", want_python_attr);
-        output.push_str("        pythonAttr = if builtins.hasAttr wantPythonAttr pkgs then wantPythonAttr else \"python3\";\n");
-        output.push_str("        python = pkgs.${pythonAttr};\n");
-        output.push_str("        wantPythonPackagesAttr = \"${pythonAttr}Packages\";\n");
-        output.push_str(
-            "        pythonPackages = if builtins.hasAttr wantPythonPackagesAttr pkgs then pkgs.${wantPythonPackagesAttr} else pkgs.python3Packages;\n\n",
-        );
-    }
-
-    if need_node {
-        let want_node_attr = node_want_attr.as_deref().unwrap_or("nodejs");
-        writeln_nix_string(&mut output, "        wantNodeAttr", want_node_attr);
-        output.push_str("        nodeAttr = if builtins.hasAttr wantNodeAttr pkgs then wantNodeAttr else \"nodejs\";\n");
-        output.push_str("        node = pkgs.${nodeAttr};\n\n");
-    }
-
-    if uses_rust_overlay {
-        if let Some(want) = rust_want_version.as_deref() {
-            writeln_nix_string(&mut output, "        wantRustVersion", want);
-            output.push_str(
-                "        rustToolchainBase = if builtins.hasAttr wantRustVersion pkgs.rust-bin.stable\n",
-            );
-            output.push_str("          then pkgs.rust-bin.stable.${wantRustVersion}.default\n");
-            output.push_str("          else pkgs.rust-bin.stable.latest.default;\n");
-        } else {
-            output.push_str("        rustToolchainBase = pkgs.rust-bin.stable.latest.default;\n");
-        }
-
-        output.push_str("        rustToolchain = rustToolchainBase.override {\n");
-        output.push_str("          extensions = [ \"rust-src\" \"rust-analyzer\" ];\n");
-        output.push_str("        };\n\n");
-    }
-
-    let mut dev_packages_lines: Vec<String> = Vec::new();
-
-    if need_go {
-        dev_packages_lines.push("            go".to_string());
-        dev_packages_lines.push("            pkgs.gopls".to_string());
-    }
-
-    if need_python {
-        dev_packages_lines.push("            python".to_string());
-    }
-
-    if need_node {
-        dev_packages_lines.push("            node".to_string());
-        dev_packages_lines.push("            pkgs.nodePackages.typescript".to_string());
-        dev_packages_lines
-            .push("            pkgs.nodePackages.typescript-language-server".to_string());
-    }
-
-    if uses_rust_overlay {
-        dev_packages_lines.push("            rustToolchain".to_string());
-    }
-
-    if required_task_runner_tools.contains("gnumake") {
-        dev_packages_lines.push("            pkgs.gnumake".to_string());
-    }
-    if required_task_runner_tools.contains("just") {
-        dev_packages_lines.push("            pkgs.just".to_string());
-    }
-    if required_task_runner_tools.contains("go-task") {
-        dev_packages_lines.push("            pkgs.go-task".to_string());
-    }
-
-    if need_python && required_task_runner_tools.contains("tox") {
-        output.push_str(
-            "        tox = if builtins.hasAttr \"tox\" pythonPackages then pythonPackages.tox else null;\n",
-        );
-    }
-    if need_python && required_task_runner_tools.contains("nox") {
-        output.push_str(
-            "        nox = if builtins.hasAttr \"nox\" pythonPackages then pythonPackages.nox else null;\n",
-        );
-    }
-    if need_python && required_task_runner_tools.contains("invoke") {
-        output.push_str(
-            "        invoke = if builtins.hasAttr \"invoke\" pythonPackages then pythonPackages.invoke else null;\n",
-        );
-    }
-
-    if need_node {
-        if required_package_managers.contains(&PackageManager::Pnpm) {
-            output.push_str(
-                "        pnpm = if builtins.hasAttr \"pnpm\" pkgs.nodePackages then pkgs.nodePackages.pnpm else null;\n",
-            );
-        }
-        if required_package_managers.contains(&PackageManager::Yarn) {
-            output.push_str(
-                "        yarn = if builtins.hasAttr \"yarn\" pkgs then pkgs.yarn else null;\n",
-            );
-        }
-        if required_package_managers.contains(&PackageManager::Bun) {
-            output.push_str(
-                "        bun = if builtins.hasAttr \"bun\" pkgs then pkgs.bun else null;\n",
-            );
-        }
-        if required_package_managers.contains(&PackageManager::Deno) {
-            output.push_str(
-                "        deno = if builtins.hasAttr \"deno\" pkgs then pkgs.deno else null;\n",
-            );
-        }
-    }
-
-    if need_python {
-        if required_package_managers.contains(&PackageManager::Poetry) {
-            output.push_str(
-                "        poetry = if builtins.hasAttr \"poetry\" pkgs then pkgs.poetry else null;\n",
-            );
-        }
-        if required_package_managers.contains(&PackageManager::Uv) {
-            output
-                .push_str("        uv = if builtins.hasAttr \"uv\" pkgs then pkgs.uv else null;\n");
-        }
-        if required_package_managers.contains(&PackageManager::Pdm) {
-            output.push_str(
-                "        pdm = if builtins.hasAttr \"pdm\" pkgs then pkgs.pdm else null;\n",
-            );
-        }
-        if required_package_managers.contains(&PackageManager::Pipenv) {
-            output.push_str(
-                "        pipenv = if builtins.hasAttr \"pipenv\" pkgs then pkgs.pipenv else null;\n",
-            );
-        }
-    }
-
-    if need_node {
-        for tool in &required_node_tools {
-            let var = format!("nodeTool{}", tool.to_ascii_uppercase());
-            writeln_nix_string(&mut output, &format!("        {var}"), tool);
-            output.push_str(&format!(
-                "        {var}Pkg = if builtins.hasAttr \"{tool}\" pkgs.nodePackages then pkgs.nodePackages.{tool} else null;\n",
-            ));
-        }
-        output.push('\n');
-    }
-
-    if need_python {
-        output.push_str(
-            "        pyright = if builtins.hasAttr \"pyright\" pkgs then pkgs.pyright\n          else if builtins.hasAttr \"pyright\" pkgs.nodePackages then pkgs.nodePackages.pyright\n          else null;\n\n",
-        );
-    }
-
-    output.push_str("        devPackages =\n");
-    output.push_str("          [\n");
-    for line in dev_packages_lines {
-        output.push_str(&format!("{line}\n"));
-    }
-    output.push_str("          ]");
-
-    if need_python && required_task_runner_tools.contains("tox") {
-        output.push_str("\n          ++ lib.optional (tox != null) tox");
-    }
-    if need_python && required_task_runner_tools.contains("nox") {
-        output.push_str("\n          ++ lib.optional (nox != null) nox");
-    }
-    if need_python && required_task_runner_tools.contains("invoke") {
-        output.push_str("\n          ++ lib.optional (invoke != null) invoke");
-    }
-
-    if need_node {
-        if required_package_managers.contains(&PackageManager::Pnpm) {
-            output.push_str("\n          ++ lib.optional (pnpm != null) pnpm");
-        }
-        if required_package_managers.contains(&PackageManager::Yarn) {
-            output.push_str("\n          ++ lib.optional (yarn != null) yarn");
-        }
-        if required_package_managers.contains(&PackageManager::Bun) {
-            output.push_str("\n          ++ lib.optional (bun != null) bun");
-        }
-        if required_package_managers.contains(&PackageManager::Deno) {
-            output.push_str("\n          ++ lib.optional (deno != null) deno");
-        }
-    }
-
-    if need_python {
-        if required_package_managers.contains(&PackageManager::Poetry) {
-            output.push_str("\n          ++ lib.optional (poetry != null) poetry");
-        }
-        if required_package_managers.contains(&PackageManager::Uv) {
-            output.push_str("\n          ++ lib.optional (uv != null) uv");
-        }
-        if required_package_managers.contains(&PackageManager::Pdm) {
-            output.push_str("\n          ++ lib.optional (pdm != null) pdm");
-        }
-        if required_package_managers.contains(&PackageManager::Pipenv) {
-            output.push_str("\n          ++ lib.optional (pipenv != null) pipenv");
-        }
-    }
-
-    if need_node {
-        for tool in &required_node_tools {
-            let var = format!("nodeTool{}Pkg", tool.to_ascii_uppercase());
-            output.push_str(&format!(
-                "\n          ++ lib.optional ({var} != null) {var}"
-            ));
-        }
-    }
-
-    if need_python {
-        output.push_str("\n          ++ lib.optional (pyright != null) pyright");
-    }
-
-    output.push_str(";\n\n");
-
-    output.push_str("      in\n");
-    output.push_str("      {\n");
-
-    output.push_str("        devShells.default = pkgs.mkShell {\n");
-    output.push_str("          packages = devPackages;\n");
-
-    let need_shell_hook =
-        !notices.is_empty() || need_go || need_python || need_node || uses_rust_overlay;
-    if !need_shell_hook {
-        output.push_str("        };\n\n");
-    } else {
-        output.push_str("          shellHook = ''\n");
-        output.push_str("            echo \"autonix: generated devShell (best-effort)\"\n");
-
-        if need_go {
-            output.push_str(
-                "            echo \"autonix: Go attr: ${goAttr} (requested ${wantGoAttr})\"\n",
-            );
-            output.push_str("            if [ \"${goAttr}\" != \"${wantGoAttr}\" ]; then\n");
-            output.push_str(
-                "              echo \"autonix: NOTE: ${wantGoAttr} not found; using ${goAttr}\"\n",
-            );
-            output.push_str("            fi\n");
-        }
-
-        if need_python {
-            output.push_str(
-                "            echo \"autonix: Python attr: ${pythonAttr} (requested ${wantPythonAttr})\"\n",
-            );
-            output
-                .push_str("            if [ \"${pythonAttr}\" != \"${wantPythonAttr}\" ]; then\n");
-            output.push_str(
-                "              echo \"autonix: NOTE: ${wantPythonAttr} not found; using ${pythonAttr}\"\n",
-            );
-            output.push_str("            fi\n");
-        }
-
-        if need_node {
-            output.push_str(
-                "            echo \"autonix: Node attr: ${nodeAttr} (requested ${wantNodeAttr})\"\n",
-            );
-            output.push_str("            if [ \"${nodeAttr}\" != \"${wantNodeAttr}\" ]; then\n");
-            output.push_str(
-                "              echo \"autonix: NOTE: ${wantNodeAttr} not found; using ${nodeAttr}\"\n",
-            );
-            output.push_str("            fi\n");
-        }
-
-        if uses_rust_overlay {
-            output
-                .push_str("            echo \"autonix: Rust toolchain enabled (rust-overlay)\"\n");
-        }
-
-        for msg in notices {
-            let escaped = nix_escape_string(&msg);
-            output.push_str(&format!(
-                "            echo ${{lib.escapeShellArg \"{escaped}\"}}\n",
-            ));
-        }
-        output.push_str("          '';\n");
-        output.push_str("        };\n\n");
-    }
-
-    output.push_str("        checks = {\n");
-    for check in checks {
-        output.push_str(&render_check(&check));
-    }
-    output.push_str("        };\n");
-
-    output.push_str("      });\n");
-    output.push_str("}\n");
-
-    output
+    required
 }
 
-const GO_VERSION_SOURCES: &[VersionSource] =
-    &[VersionSource::GoModDirective, VersionSource::GoVersionFile];
+fn generate_version_notice(
+    language_name: &str,
+    version_info: Option<&VersionInfo>,
+    selected_attr: Option<&str>,
+    default_fallback: &str,
+    note: Option<&str>,
+) -> Option<String> {
+    let version = version_info?;
+    let _parsed = version.parsed.as_ref()?;
 
-const PYTHON_VERSION_SOURCES: &[VersionSource] = &[
-    VersionSource::PyprojectRequiresPython,
-    VersionSource::PythonVersionFile,
-    VersionSource::PipfilePythonVersion,
-    VersionSource::SetupPyPythonRequires,
-];
+    let requested = format!("{} (from {:?})", version.raw, version.source);
+    let selected = selected_attr.unwrap_or(default_fallback);
+    let note = note.unwrap_or("");
 
-const NODE_VERSION_SOURCES: &[VersionSource] = &[
-    VersionSource::PackageJsonEnginesNode,
-    VersionSource::NvmrcFile,
-    VersionSource::NodeVersionFile,
-];
+    Some(
+        format!("{language_name}: requested {requested} -> want {selected} {note}")
+            .trim()
+            .to_string(),
+    )
+}
 
-const RUST_VERSION_SOURCES: &[VersionSource] = &[
-    VersionSource::RustToolchainFile,
-    VersionSource::RustToolchainToml,
-    VersionSource::CargoTomlRustVersion,
-];
+fn go_notice(go_version: Option<&VersionInfo>, go_want_attr: Option<&str>) -> Option<String> {
+    let patch_note = go_version
+        .and_then(|v| v.parsed.as_ref())
+        .filter(|p| p.patch.is_some())
+        .map(|_| "note: nixpkgs provides Go by major/minor (patch may differ)");
+
+    generate_version_notice(
+        "Go",
+        go_version,
+        go_want_attr,
+        "go (unversioned; go_* not inferred)",
+        patch_note,
+    )
+}
+
+fn python_notice(
+    python_version: Option<&VersionInfo>,
+    python_want_attr: Option<&str>,
+) -> Option<String> {
+    let patch_note = python_version
+        .and_then(|v| v.parsed.as_ref())
+        .filter(|p| p.patch.is_some() || !matches!(p.constraint, VersionConstraint::Exact))
+        .map(|_| "note: nixpkgs provides Python by major/minor (patch may differ)");
+
+    generate_version_notice(
+        "Python",
+        python_version,
+        python_want_attr,
+        "python3 (unversioned; pythonXY not inferred)",
+        patch_note,
+    )
+}
+
+fn node_notice(node_version: Option<&VersionInfo>, node_want_attr: Option<&str>) -> Option<String> {
+    let patch_note = node_version
+        .and_then(|v| v.parsed.as_ref())
+        .filter(|p| p.minor.is_some() || p.patch.is_some())
+        .map(|_| "note: nixpkgs provides Node.js by major (minor/patch may differ)");
+
+    generate_version_notice(
+        "Node",
+        node_version,
+        node_want_attr,
+        "nodejs (unversioned; nodejs_* not inferred)",
+        patch_note,
+    )
+}
+
+fn rust_notice(
+    need_rust: bool,
+    rust_version: Option<&VersionInfo>,
+    rust_want_version: Option<&str>,
+) -> Option<String> {
+    if !need_rust {
+        return None;
+    }
+
+    if let Some(v) = rust_want_version {
+        return Some(format!(
+            "Rust: requested {} -> try rust-bin.stable.{v} (fallback latest)",
+            rust_version
+                .map(|vi| format!("{} (from {:?})", vi.raw, vi.source))
+                .unwrap_or_else(|| "(unknown)".to_string())
+        ));
+    }
+
+    if let Some(vi) = rust_version {
+        return Some(format!(
+            "Rust: detected {} (from {:?}) -> using rust-bin.stable.latest (not exact pin)",
+            vi.raw, vi.source
+        ));
+    }
+
+    None
+}
+
+fn generate_main_flake_header() -> String {
+    let mut out = String::new();
+
+    out.push_str("# Generated by autonix\n");
+    out.push_str("#\n");
+    out.push_str("# This flake uses a multi-file structure:\n");
+    out.push_str("#   .autonix/devShell.nix              - Development shell\n");
+    out.push_str("#   .autonix/{language}/packages.nix   - Language toolchains and tools\n");
+    out.push_str("#   .autonix/{language}/*-checks.nix   - Build and test checks\n");
+    out.push_str("#\n");
+
+    out
+}
+
+fn generate_file_header(description: &str) -> String {
+    format!("# Generated by autonix\n# {description}\n")
+}
+
+fn generate_flake_inputs(uses_rust_overlay: bool) -> String {
+    let mut out = String::new();
+
+    out.push_str("  inputs = {\n");
+    out.push_str("    nixpkgs.url = \"github:NixOS/nixpkgs/nixos-unstable\";\n");
+    out.push_str("    flake-utils.url = \"github:numtide/flake-utils\";\n");
+
+    if uses_rust_overlay {
+        out.push_str("    rust-overlay = {\n");
+        out.push_str("      url = \"github:oxalica/rust-overlay\";\n");
+        out.push_str("      inputs.nixpkgs.follows = \"nixpkgs\";\n");
+        out.push_str("    };\n");
+    }
+
+    out.push_str("  };\n\n");
+
+    out
+}
+
+fn generate_flake_let_bindings(
+    uses_rust_overlay: bool,
+    need_go: bool,
+    need_python: bool,
+    need_node: bool,
+    need_rust: bool,
+    required_task_runner_tools: &BTreeSet<&'static str>,
+) -> String {
+    let mut out = String::new();
+
+    out.push_str("      let\n");
+
+    if uses_rust_overlay {
+        out.push_str("        overlays = [ (import .autonix/rust/overlay.nix { inherit rust-overlay; }) ];\n");
+        out.push_str("        pkgs = import nixpkgs { inherit system overlays; };\n");
+    } else {
+        out.push_str("        pkgs = import nixpkgs { inherit system; };\n");
+    }
+    out.push_str("        lib = pkgs.lib;\n\n");
+
+    if need_go {
+        out.push_str(
+            "        golangPackages = import .autonix/golang/packages.nix { inherit pkgs lib; };\n",
+        );
+    }
+    if need_python {
+        out.push_str(
+            "        pythonPackages = import .autonix/python/packages.nix { inherit pkgs lib; };\n",
+        );
+    }
+    if need_node {
+        out.push_str(
+            "        nodejsPackages = import .autonix/nodejs/packages.nix { inherit pkgs lib; };\n",
+        );
+    }
+    if need_rust {
+        out.push_str(
+            "        rustPackages = import .autonix/rust/packages.nix { inherit pkgs lib; };\n",
+        );
+    }
+    if need_go || need_python || need_node || need_rust {
+        out.push('\n');
+    }
+
+    let generic_packages = generic_task_runner_packages(required_task_runner_tools);
+    let include_generic_packages = !generic_packages.is_empty();
+
+    if include_generic_packages {
+        out.push_str("        genericPackages = [\n");
+        for pkg in generic_packages {
+            writeln!(out, "          pkgs.{pkg}").unwrap();
+        }
+        out.push_str("        ];\n\n");
+    }
+
+    let mut dev_sources: Vec<&str> = Vec::new();
+    if include_generic_packages {
+        dev_sources.push("genericPackages");
+    }
+    if need_go {
+        dev_sources.push("golangPackages.packages");
+    }
+    if need_python {
+        dev_sources.push("pythonPackages.packages");
+    }
+    if need_node {
+        dev_sources.push("nodejsPackages.packages");
+    }
+    if need_rust {
+        dev_sources.push("rustPackages.packages");
+    }
+
+    out.push_str("        devPackages = []");
+    for src in dev_sources {
+        write!(out, "\n          ++ {src}").unwrap();
+    }
+    out.push_str(";\n\n");
+
+    let mut notice_sources: Vec<&str> = Vec::new();
+    if need_go {
+        notice_sources.push("golangPackages.notices");
+    }
+    if need_python {
+        notice_sources.push("pythonPackages.notices");
+    }
+    if need_node {
+        notice_sources.push("nodejsPackages.notices");
+    }
+    if need_rust {
+        notice_sources.push("rustPackages.notices");
+    }
+
+    out.push_str("        notices = []");
+    for src in notice_sources {
+        write!(out, "\n          ++ {src}").unwrap();
+    }
+    out.push_str(";\n\n");
+
+    out
+}
+
+fn generate_devshell_binding(
+    need_go: bool,
+    need_python: bool,
+    need_node: bool,
+    need_rust: bool,
+) -> String {
+    let mut out = String::new();
+
+    out.push_str("        devShells.default = import .autonix/devShell.nix {\n");
+    out.push_str("          inherit pkgs lib devPackages notices;\n");
+
+    if need_go {
+        out.push_str("          go = golangPackages.go or null;\n");
+        out.push_str("          goAttr = golangPackages.goAttr or null;\n");
+        out.push_str("          wantGoAttr = golangPackages.wantGoAttr or null;\n");
+    }
+    if need_python {
+        out.push_str("          python = pythonPackages.python or null;\n");
+        out.push_str("          pythonAttr = pythonPackages.pythonAttr or null;\n");
+        out.push_str("          wantPythonAttr = pythonPackages.wantPythonAttr or null;\n");
+    }
+    if need_node {
+        out.push_str("          node = nodejsPackages.node or null;\n");
+        out.push_str("          nodeAttr = nodejsPackages.nodeAttr or null;\n");
+        out.push_str("          wantNodeAttr = nodejsPackages.wantNodeAttr or null;\n");
+    }
+    if need_rust {
+        out.push_str("          rustToolchain = rustPackages.rustToolchain or null;\n");
+    }
+
+    out.push_str("        };\n\n");
+
+    out
+}
+
+fn generate_checks_binding(check_files: &[CheckFile]) -> String {
+    let mut out = String::new();
+
+    if check_files.is_empty() {
+        out.push_str("        checks = {};\n");
+    } else {
+        out.push_str("        checks = {}\n");
+        for file in check_files {
+            let path = file.relative_path.to_string_lossy();
+            writeln!(
+                out,
+                "          // (import .autonix/{path} {{ inherit pkgs lib devPackages projectRoot; }})"
+            )
+            .unwrap();
+        }
+        out.push_str("          ;\n");
+    }
+
+    out
+}
+
+fn generate_main_flake(
+    need_go: bool,
+    need_python: bool,
+    need_node: bool,
+    need_rust: bool,
+    uses_rust_overlay: bool,
+    check_files: &[CheckFile],
+    required_task_runner_tools: &BTreeSet<&'static str>,
+) -> String {
+    let mut out = String::new();
+
+    out.push_str(&generate_main_flake_header());
+
+    out.push_str("{\n");
+    out.push_str("  description = \"Generated by autonix (devShells.default + checks)\";\n\n");
+
+    out.push_str(&generate_flake_inputs(uses_rust_overlay));
+
+    out.push_str("  outputs = { self, nixpkgs, flake-utils");
+    if uses_rust_overlay {
+        out.push_str(", rust-overlay");
+    }
+    out.push_str(" }:\n");
+    out.push_str("    flake-utils.lib.eachDefaultSystem (system:\n");
+
+    out.push_str(&generate_flake_let_bindings(
+        uses_rust_overlay,
+        need_go,
+        need_python,
+        need_node,
+        need_rust,
+        required_task_runner_tools,
+    ));
+
+    if !check_files.is_empty() {
+        out.push_str("        projectRoot = ./.;\n\n");
+    }
+
+    out.push_str("      in\n");
+    out.push_str("      {\n");
+
+    out.push_str(&generate_devshell_binding(
+        need_go,
+        need_python,
+        need_node,
+        need_rust,
+    ));
+    out.push_str(&generate_checks_binding(check_files));
+
+    out.push_str("      });\n");
+    out.push_str("}\n");
+
+    out
+}
+
+fn generic_task_runner_packages(
+    required_task_runner_tools: &BTreeSet<&'static str>,
+) -> Vec<&'static str> {
+    required_task_runner_tools
+        .iter()
+        .copied()
+        .filter(|&tool| {
+            matches!(
+                tool,
+                constants::GENERIC_TOOL_GNUMAKE
+                    | constants::GENERIC_TOOL_JUST
+                    | constants::GENERIC_TOOL_GO_TASK
+            )
+        })
+        .collect()
+}
+
+fn generate_devshell_nix() -> String {
+    let mut out = String::new();
+
+    out.push_str(&generate_file_header("Development shell configuration"));
+    out.push_str(
+        "{ pkgs, lib, devPackages, notices ? []\n, go ? null, goAttr ? null, wantGoAttr ? null\n, python ? null, pythonAttr ? null, wantPythonAttr ? null\n, node ? null, nodeAttr ? null, wantNodeAttr ? null\n, rustToolchain ? null\n}:\n\n",
+    );
+
+    out.push_str("pkgs.mkShell {\n");
+    out.push_str("  packages = devPackages;\n\n");
+
+    out.push_str("  shellHook = ''\n");
+    out.push_str("    echo \"autonix: generated devShell (best-effort)\"\n\n");
+
+    out.push_str(
+        "    ${lib.optionalString (go != null) ''\n      echo \"autonix: Go attr: ${goAttr} (requested ${wantGoAttr})\"\n      if [ \"${goAttr}\" != \"${wantGoAttr}\" ]; then\n        echo \"autonix: NOTE: ${wantGoAttr} not found; using ${goAttr}\"\n      fi\n    ''}\n\n",
+    );
+
+    out.push_str(
+        "    ${lib.optionalString (python != null) ''\n      echo \"autonix: Python attr: ${pythonAttr} (requested ${wantPythonAttr})\"\n      if [ \"${pythonAttr}\" != \"${wantPythonAttr}\" ]; then\n        echo \"autonix: NOTE: ${wantPythonAttr} not found; using ${pythonAttr}\"\n      fi\n    ''}\n\n",
+    );
+
+    out.push_str(
+        "    ${lib.optionalString (node != null) ''\n      echo \"autonix: Node attr: ${nodeAttr} (requested ${wantNodeAttr})\"\n      if [ \"${nodeAttr}\" != \"${wantNodeAttr}\" ]; then\n        echo \"autonix: NOTE: ${wantNodeAttr} not found; using ${nodeAttr}\"\n      fi\n    ''}\n\n",
+    );
+
+    out.push_str(
+        "    ${lib.optionalString (rustToolchain != null) ''\n      echo \"autonix: Rust toolchain enabled (rust-overlay)\"\n    ''}\n\n",
+    );
+
+    out.push_str(
+        "    ${lib.concatMapStringsSep \"\\n\" (msg: \"echo ${lib.escapeShellArg msg}\") notices}\n",
+    );
+
+    out.push_str("  '';\n");
+    out.push_str("}\n");
+
+    out
+}
+
+fn generate_rust_overlay_nix() -> String {
+    let mut out = String::new();
+    out.push_str(&generate_file_header("Rust overlay (oxalica/rust-overlay)"));
+    out.push_str("{ rust-overlay }: import rust-overlay\n");
+    out
+}
+
+fn generate_golang_packages_nix(want_go_attr: &str, notice: Option<&str>) -> String {
+    let mut out = String::new();
+
+    out.push_str(&generate_file_header("Go toolchain and development tools"));
+    out.push_str("{ pkgs, lib }:\n\n");
+
+    out.push_str("let\n");
+    nix_builder::write_nix_string_binding(&mut out, "  ", "wantGoAttr", want_go_attr);
+    nix_builder::write_attr_with_fallback(&mut out, "  ", "goAttr", "wantGoAttr", "pkgs", "go");
+    out.push_str("  go = pkgs.${goAttr};\n\n");
+
+    out.push_str(&nix_builder::NoticeListBuilder::new("  ").build(notice));
+
+    out.push_str("in\n{\n");
+    out.push_str("  inherit go goAttr wantGoAttr notices;\n\n");
+    out.push_str("  packages = [\n");
+    out.push_str("    go\n");
+    out.push_str(&format!("    pkgs.{}\n", constants::GO_TOOL_GOPLS));
+    out.push_str("  ];\n");
+    out.push_str("}\n");
+
+    out
+}
+
+fn generate_python_packages_nix(
+    want_python_attr: &str,
+    notice: Option<&str>,
+    required_package_managers: &HashSet<PackageManager>,
+    required_task_runner_tools: &BTreeSet<&'static str>,
+) -> String {
+    let include_tox = required_task_runner_tools.contains(constants::PYTHON_TOOL_TOX);
+    let include_nox = required_task_runner_tools.contains(constants::PYTHON_TOOL_NOX);
+    let include_invoke = required_task_runner_tools.contains(constants::PYTHON_TOOL_INVOKE);
+
+    let include_poetry = required_package_managers.contains(&PackageManager::Poetry);
+    let include_uv = required_package_managers.contains(&PackageManager::Uv);
+    let include_pdm = required_package_managers.contains(&PackageManager::Pdm);
+    let include_pipenv = required_package_managers.contains(&PackageManager::Pipenv);
+
+    let mut out = String::new();
+
+    out.push_str(&generate_file_header(
+        "Python toolchain and development tools",
+    ));
+    out.push_str("{ pkgs, lib }:\n\n");
+
+    out.push_str("let\n");
+    nix_builder::write_nix_string_binding(&mut out, "  ", "wantPythonAttr", want_python_attr);
+    nix_builder::write_attr_with_fallback(
+        &mut out,
+        "  ",
+        "pythonAttr",
+        "wantPythonAttr",
+        "pkgs",
+        "python3",
+    );
+    out.push_str("  python = pkgs.${pythonAttr};\n");
+    out.push_str("  wantPythonPackagesAttr = \"${pythonAttr}Packages\";\n");
+    out.push_str(
+        "  pythonPackages = if builtins.hasAttr wantPythonPackagesAttr pkgs then pkgs.${wantPythonPackagesAttr} else pkgs.python3Packages;\n\n",
+    );
+
+    if include_tox {
+        out.push_str(&format!(
+            "  {tool} = if builtins.hasAttr \"{tool}\" pythonPackages then pythonPackages.{tool} else null;\n",
+            tool = constants::PYTHON_TOOL_TOX,
+        ));
+    }
+    if include_nox {
+        out.push_str(&format!(
+            "  {tool} = if builtins.hasAttr \"{tool}\" pythonPackages then pythonPackages.{tool} else null;\n",
+            tool = constants::PYTHON_TOOL_NOX,
+        ));
+    }
+    if include_invoke {
+        out.push_str(&format!(
+            "  {tool} = if builtins.hasAttr \"{tool}\" pythonPackages then pythonPackages.{tool} else null;\n",
+            tool = constants::PYTHON_TOOL_INVOKE,
+        ));
+    }
+
+    if include_poetry {
+        out.push_str(
+            "  poetry = if builtins.hasAttr \"poetry\" pkgs then pkgs.poetry else null;\n",
+        );
+    }
+    if include_uv {
+        out.push_str("  uv = if builtins.hasAttr \"uv\" pkgs then pkgs.uv else null;\n");
+    }
+    if include_pdm {
+        out.push_str("  pdm = if builtins.hasAttr \"pdm\" pkgs then pkgs.pdm else null;\n");
+    }
+    if include_pipenv {
+        out.push_str(
+            "  pipenv = if builtins.hasAttr \"pipenv\" pkgs then pkgs.pipenv else null;\n",
+        );
+    }
+
+    out.push_str(
+        "  pyright = if builtins.hasAttr \"pyright\" pkgs then pkgs.pyright\n    else if builtins.hasAttr \"pyright\" pkgs.nodePackages then pkgs.nodePackages.pyright\n    else null;\n\n",
+    );
+
+    out.push_str(&nix_builder::NoticeListBuilder::new("  ").build(notice));
+
+    out.push_str("in\n{\n");
+    out.push_str("  inherit python pythonPackages pythonAttr wantPythonAttr notices;\n\n");
+
+    out.push_str("  packages = [ python ]");
+
+    if include_tox {
+        out.push_str("\n    ++ lib.optional (tox != null) tox");
+    }
+    if include_nox {
+        out.push_str("\n    ++ lib.optional (nox != null) nox");
+    }
+    if include_invoke {
+        out.push_str("\n    ++ lib.optional (invoke != null) invoke");
+    }
+
+    if include_poetry {
+        out.push_str("\n    ++ lib.optional (poetry != null) poetry");
+    }
+    if include_uv {
+        out.push_str("\n    ++ lib.optional (uv != null) uv");
+    }
+    if include_pdm {
+        out.push_str("\n    ++ lib.optional (pdm != null) pdm");
+    }
+    if include_pipenv {
+        out.push_str("\n    ++ lib.optional (pipenv != null) pipenv");
+    }
+
+    out.push_str("\n    ++ lib.optional (pyright != null) pyright");
+
+    out.push_str(";\n");
+    out.push_str("}\n");
+
+    out
+}
+
+fn generate_nodejs_packages_nix(
+    want_node_attr: &str,
+    notice: Option<&str>,
+    required_package_managers: &HashSet<PackageManager>,
+    required_node_tools: &BTreeSet<&'static str>,
+) -> String {
+    let include_pnpm = required_package_managers.contains(&PackageManager::Pnpm);
+    let include_yarn = required_package_managers.contains(&PackageManager::Yarn);
+    let include_bun = required_package_managers.contains(&PackageManager::Bun);
+    let include_deno = required_package_managers.contains(&PackageManager::Deno);
+
+    let mut out = String::new();
+
+    out.push_str(&generate_file_header(
+        "Node.js toolchain and development tools",
+    ));
+    out.push_str("{ pkgs, lib }:\n\n");
+
+    out.push_str("let\n");
+    nix_builder::write_nix_string_binding(&mut out, "  ", "wantNodeAttr", want_node_attr);
+    nix_builder::write_attr_with_fallback(
+        &mut out,
+        "  ",
+        "nodeAttr",
+        "wantNodeAttr",
+        "pkgs",
+        "nodejs",
+    );
+    out.push_str("  node = pkgs.${nodeAttr};\n\n");
+
+    if include_pnpm {
+        out.push_str(
+            "  pnpm = if builtins.hasAttr \"pnpm\" pkgs.nodePackages then pkgs.nodePackages.pnpm else null;\n",
+        );
+    }
+    if include_yarn {
+        out.push_str("  yarn = if builtins.hasAttr \"yarn\" pkgs then pkgs.yarn else null;\n");
+    }
+    if include_bun {
+        out.push_str("  bun = if builtins.hasAttr \"bun\" pkgs then pkgs.bun else null;\n");
+    }
+    if include_deno {
+        out.push_str("  deno = if builtins.hasAttr \"deno\" pkgs then pkgs.deno else null;\n");
+    }
+
+    for tool in required_node_tools {
+        out.push_str(&format!(
+            "  {tool} = if builtins.hasAttr \"{tool}\" pkgs.nodePackages then pkgs.nodePackages.{tool} else null;\n"
+        ));
+    }
+
+    out.push('\n');
+    out.push_str(&nix_builder::NoticeListBuilder::new("  ").build(notice));
+
+    out.push_str("in\n{\n");
+    out.push_str("  inherit node nodeAttr wantNodeAttr notices;\n\n");
+
+    out.push_str("  packages =\n");
+    out.push_str("    [\n");
+    out.push_str("      node\n");
+    out.push_str(&format!(
+        "      pkgs.nodePackages.{}\n",
+        constants::NODE_PKG_TYPESCRIPT
+    ));
+    out.push_str(&format!(
+        "      pkgs.nodePackages.{}\n",
+        constants::NODE_PKG_TYPESCRIPT_LS
+    ));
+    out.push_str("    ]");
+
+    if include_pnpm {
+        out.push_str("\n    ++ lib.optional (pnpm != null) pnpm");
+    }
+    if include_yarn {
+        out.push_str("\n    ++ lib.optional (yarn != null) yarn");
+    }
+    if include_bun {
+        out.push_str("\n    ++ lib.optional (bun != null) bun");
+    }
+    if include_deno {
+        out.push_str("\n    ++ lib.optional (deno != null) deno");
+    }
+
+    for tool in required_node_tools {
+        out.push_str(&format!("\n    ++ lib.optional ({tool} != null) {tool}"));
+    }
+
+    out.push_str(";\n");
+    out.push_str("}\n");
+
+    out
+}
+
+fn generate_rust_packages_nix(want_rust_version: Option<&str>, notice: Option<&str>) -> String {
+    let mut out = String::new();
+
+    out.push_str(&generate_file_header(
+        "Rust toolchain and development tools",
+    ));
+    out.push_str("{ pkgs, lib }:\n\n");
+
+    out.push_str("let\n");
+    if let Some(want) = want_rust_version {
+        nix_builder::write_nix_string_binding(&mut out, "  ", "wantRustVersion", want);
+        out.push_str(
+            "  rustToolchainBase = if builtins.hasAttr wantRustVersion pkgs.rust-bin.stable\n    then pkgs.rust-bin.stable.${wantRustVersion}.default\n    else pkgs.rust-bin.stable.latest.default;\n",
+        );
+    } else {
+        out.push_str("  rustToolchainBase = pkgs.rust-bin.stable.latest.default;\n");
+    }
+
+    out.push('\n');
+    out.push_str("  rustToolchain = rustToolchainBase.override {\n");
+    out.push_str("    extensions = [ \"rust-src\" \"rust-analyzer\" ];\n");
+    out.push_str("  };\n\n");
+
+    out.push_str(&nix_builder::NoticeListBuilder::new("  ").build(notice));
+
+    out.push_str("in\n{\n");
+    out.push_str("  inherit rustToolchain notices;\n\n");
+    out.push_str("  packages = [ rustToolchain ];\n");
+    out.push_str("}\n");
+
+    out
+}
 
 fn detected_languages(metadata: &ProjectMetadata) -> HashSet<Language> {
     metadata
@@ -575,6 +975,13 @@ fn detected_languages(metadata: &ProjectMetadata) -> HashSet<Language> {
         .iter()
         .map(|l| l.language.clone())
         .collect()
+}
+
+fn primary_language(metadata: &ProjectMetadata) -> Option<Language> {
+    let langs = detected_languages(metadata);
+    (langs.len() == 1)
+        .then(|| langs.into_iter().next())
+        .flatten()
 }
 
 fn detected_package_managers(metadata: &ProjectMetadata) -> HashSet<PackageManager> {
@@ -635,70 +1042,56 @@ fn rust_version_string_from_version(version: &SemanticVersion) -> Option<String>
     Some(format!("{major}.{minor}.{patch}"))
 }
 
-fn resolve_js_package_manager(package_json_path: &Path) -> PackageManager {
-    if let Ok(content) = fs::read_to_string(package_json_path)
-        && let Ok(parsed) = serde_json::from_str::<JsonValue>(&content)
-        && let Some(package_manager_str) = parsed.get("packageManager").and_then(|v| v.as_str())
-    {
-        let name = package_manager_str
-            .split('@')
-            .next()
-            .unwrap_or(package_manager_str);
+fn read_package_json_manager(path: &Path) -> Option<PackageManager> {
+    let content = fs::read_to_string(path).ok()?;
+    let parsed: JsonValue = serde_json::from_str(&content).ok()?;
+    let package_manager_str = parsed.get("packageManager")?.as_str()?;
 
-        match name {
-            "npm" => return PackageManager::Npm,
-            "pnpm" => return PackageManager::Pnpm,
-            "yarn" => return PackageManager::Yarn,
-            "bun" => return PackageManager::Bun,
-            _ => {}
-        }
+    let name = package_manager_str
+        .split('@')
+        .next()
+        .unwrap_or(package_manager_str);
+
+    match name {
+        "npm" => Some(PackageManager::Npm),
+        "pnpm" => Some(PackageManager::Pnpm),
+        "yarn" => Some(PackageManager::Yarn),
+        "bun" => Some(PackageManager::Bun),
+        _ => None,
+    }
+}
+
+fn detect_lockfile_manager(dir: &Path) -> Option<PackageManager> {
+    if dir.join("bun.lockb").exists() || dir.join("bun.lock").exists() {
+        return Some(PackageManager::Bun);
+    }
+    if dir.join("pnpm-lock.yaml").exists() {
+        return Some(PackageManager::Pnpm);
+    }
+    if dir.join("yarn.lock").exists() {
+        return Some(PackageManager::Yarn);
+    }
+    if dir.join("package-lock.json").exists() {
+        return Some(PackageManager::Npm);
+    }
+
+    None
+}
+
+fn resolve_js_package_manager(package_json_path: &Path) -> PackageManager {
+    if let Some(pm) = read_package_json_manager(package_json_path) {
+        return pm;
     }
 
     let Some(parent) = package_json_path.parent() else {
         return PackageManager::Npm;
     };
 
-    if parent.join("bun.lockb").exists() || parent.join("bun.lock").exists() {
-        return PackageManager::Bun;
-    }
-    if parent.join("pnpm-lock.yaml").exists() {
-        return PackageManager::Pnpm;
-    }
-    if parent.join("yarn.lock").exists() {
-        return PackageManager::Yarn;
-    }
-    if parent.join("package-lock.json").exists() {
-        return PackageManager::Npm;
+    if let Some(pm) = detect_lockfile_manager(parent) {
+        return pm;
     }
 
     PackageManager::Npm
-}
-
-fn package_manager_command(pm: PackageManager) -> &'static str {
-    match pm {
-        PackageManager::Npm => "npm",
-        PackageManager::Pnpm => "pnpm",
-        PackageManager::Yarn => "yarn",
-        PackageManager::Bun => "bun",
-        PackageManager::Deno => "deno",
-        PackageManager::Pip
-        | PackageManager::Uv
-        | PackageManager::Poetry
-        | PackageManager::Pdm
-        | PackageManager::Pipenv
-        | PackageManager::Cargo
-        | PackageManager::Go => "",
-    }
-}
-
-fn build_package_manager_run(pm: PackageManager, script_name: &str) -> String {
-    match pm {
-        PackageManager::Npm => format!("npm run {script_name}"),
-        PackageManager::Pnpm => format!("pnpm run {script_name}"),
-        PackageManager::Yarn => format!("yarn run {script_name}"),
-        PackageManager::Bun => format!("bun run {script_name}"),
-        _ => format!("npm run {script_name}"),
-    }
 }
 
 fn collect_checks(
@@ -707,79 +1100,145 @@ fn collect_checks(
     required_package_managers: &mut HashSet<PackageManager>,
     need_node: &mut bool,
     need_python: &mut bool,
-) -> Vec<CheckSpec> {
-    let mut specs = Vec::new();
+) -> HashMap<Option<Language>, HashMap<CheckCategory, Vec<CheckSpec>>> {
+    let mut grouped: HashMap<Option<Language>, HashMap<CheckCategory, Vec<CheckSpec>>> =
+        HashMap::new();
     let mut key_counts: HashMap<String, usize> = HashMap::new();
+
+    let primary_language = primary_language(metadata);
 
     for tr in &metadata.task_runners {
         let runner_path = relativize_path(root, &tr.path).unwrap_or_else(|| tr.path.clone());
         let runner_slug = slugify_path(&runner_path);
 
-        for (category, cmds) in [("test", &tr.commands.test), ("build", &tr.commands.build)] {
+        for (category, cmds) in [
+            (CheckCategory::Test, &tr.commands.test),
+            (CheckCategory::Build, &tr.commands.build),
+        ] {
             for cmd in cmds {
-                let (required_exec, command, workdir, display, pm_used) =
-                    resolve_command(cmd, root);
+                let (cmd_info, pm_used) = resolve_task_command(cmd, root);
 
                 if let Some(pm) = pm_used {
                     required_package_managers.insert(pm);
-                    if matches!(
-                        pm,
-                        PackageManager::Npm
-                            | PackageManager::Pnpm
-                            | PackageManager::Yarn
-                            | PackageManager::Bun
-                    ) {
+                    if pm.is_js_package_manager() {
                         *need_node = true;
                     }
                 }
 
-                if required_exec == "tox" || required_exec == "nox" || required_exec == "invoke" {
+                if cmd_info.required_exec == constants::PYTHON_TOOL_TOX
+                    || cmd_info.required_exec == constants::PYTHON_TOOL_NOX
+                    || cmd_info.required_exec == constants::PYTHON_TOOL_INVOKE
+                {
                     *need_python = true;
                 }
 
-                let runner_name = task_runner_name(tr.task_runner).to_ascii_lowercase();
-                let mut key = format!(
-                    "{category}-{runner_name}-{}-{runner_slug}",
-                    slugify_identifier(&cmd.name)
+                let language = infer_check_language(
+                    tr.task_runner,
+                    &cmd_info.required_exec,
+                    primary_language.clone(),
                 );
-                let count = key_counts.entry(key.clone()).or_insert(0);
-                *count += 1;
-                if *count > 1 {
-                    key = format!("{key}-{}", *count);
-                }
 
-                let derivation_name = format!("check-{key}");
+                let spec = build_check_spec(
+                    cmd,
+                    cmd_info,
+                    language.clone(),
+                    category,
+                    tr.task_runner,
+                    &runner_slug,
+                    &mut key_counts,
+                );
 
-                specs.push(CheckSpec {
-                    key,
-                    derivation_name,
-                    display,
-                    required_exec,
-                    command,
-                    workdir,
-                });
+                grouped
+                    .entry(spec.language.clone())
+                    .or_default()
+                    .entry(spec.category)
+                    .or_default()
+                    .push(spec);
             }
         }
     }
 
-    specs.sort_by(|a, b| a.key.cmp(&b.key));
-    specs
+    for by_cat in grouped.values_mut() {
+        for specs in by_cat.values_mut() {
+            specs.sort_by(|a, b| a.key.cmp(&b.key));
+        }
+    }
+
+    grouped
 }
 
-fn resolve_command(
-    cmd: &TaskCommand,
-    root: &Path,
-) -> (String, String, String, String, Option<PackageManager>) {
+fn infer_check_language(
+    task_runner: TaskRunner,
+    required_exec: &str,
+    primary_language: Option<Language>,
+) -> Option<Language> {
+    match task_runner {
+        TaskRunner::Cargo => return Some(Language::Rust),
+        TaskRunner::GoTask => return Some(Language::Go),
+        TaskRunner::NpmScripts
+        | TaskRunner::Vite
+        | TaskRunner::Webpack
+        | TaskRunner::Rspack
+        | TaskRunner::Rollup
+        | TaskRunner::Turbo
+        | TaskRunner::Nx => return Some(Language::JavaScript),
+        TaskRunner::Tox | TaskRunner::Nox | TaskRunner::Invoke => return Some(Language::Python),
+        TaskRunner::Make | TaskRunner::Just | TaskRunner::Task => {}
+    }
+
+    match required_exec {
+        "cargo" => Some(Language::Rust),
+        "go" => Some(Language::Go),
+        "npm" | "pnpm" | "yarn" | "bun" | "node" => Some(Language::JavaScript),
+        "python"
+        | "python3"
+        | constants::PYTHON_TOOL_TOX
+        | constants::PYTHON_TOOL_NOX
+        | constants::PYTHON_TOOL_INVOKE => Some(Language::Python),
+        "make" | "just" | "task" => primary_language,
+        _ => primary_language,
+    }
+}
+
+fn language_dir_name(lang: Option<&Language>) -> &'static str {
+    lang.map(|l| l.dir_name()).unwrap_or("generic")
+}
+
+fn language_display_name(lang: Option<Language>) -> &'static str {
+    match lang {
+        Some(Language::Go) => "Go",
+        Some(Language::Python) => "Python",
+        Some(Language::JavaScript) => "Node.js",
+        Some(Language::Rust) => "Rust",
+        None => "Generic",
+    }
+}
+
+fn category_name(category: CheckCategory) -> &'static str {
+    match category {
+        CheckCategory::Test => "test",
+        CheckCategory::Build => "build",
+    }
+}
+
+fn category_file_name(category: CheckCategory) -> &'static str {
+    match category {
+        CheckCategory::Test => "test-checks.nix",
+        CheckCategory::Build => "build-checks.nix",
+    }
+}
+
+fn resolve_task_command(cmd: &TaskCommand, root: &Path) -> (CommandInfo, Option<PackageManager>) {
     match &cmd.executable {
         CommandExecutable::Direct { command } => {
             let required_exec = command_first_word(command).unwrap_or("").to_string();
-            (
+            let info = CommandInfo {
                 required_exec,
-                command.clone(),
-                ".".to_string(),
-                command.clone(),
-                None,
-            )
+                command: command.clone(),
+                workdir: ".".to_string(),
+                display: command.clone(),
+            };
+            (info, None)
         }
         CommandExecutable::PackageManagerScript {
             script_name,
@@ -787,9 +1246,11 @@ fn resolve_command(
             package_json_path,
         } => {
             let pm = resolve_js_package_manager(package_json_path);
-            let pm_cmd = package_manager_command(pm);
+            let pm_cmd = pm.command_name().unwrap_or("");
 
-            let run_command = build_package_manager_run(pm, script_name);
+            let run_command = pm
+                .run_script(script_name)
+                .unwrap_or_else(|| format!("npm run {script_name}"));
 
             let workdir = package_json_path
                 .parent()
@@ -799,52 +1260,128 @@ fn resolve_command(
 
             let display = format!("{run_command}  # {script_body}");
 
-            (pm_cmd.to_string(), run_command, workdir, display, Some(pm))
+            let info = CommandInfo {
+                required_exec: pm_cmd.to_string(),
+                command: run_command,
+                workdir,
+                display,
+            };
+
+            (info, Some(pm))
         }
     }
 }
 
-fn render_check(check: &CheckSpec) -> String {
+fn build_check_spec(
+    cmd: &TaskCommand,
+    cmd_info: CommandInfo,
+    language: Option<Language>,
+    category: CheckCategory,
+    task_runner: TaskRunner,
+    runner_slug: &str,
+    key_counts: &mut HashMap<String, usize>,
+) -> CheckSpec {
+    let language_prefix = language_dir_name(language.as_ref());
+    let category_name = category_name(category);
+    let runner_name = task_runner_name(task_runner).to_ascii_lowercase();
+
+    let mut key = format!(
+        "{language_prefix}-{category_name}-{runner_name}-{}-{runner_slug}",
+        slugify_identifier(&cmd.name)
+    );
+
+    let count = key_counts.entry(key.clone()).or_insert(0);
+    *count += 1;
+    if *count > 1 {
+        key = format!("{key}-{}", *count);
+    }
+
+    let derivation_name = format!("check-{key}");
+
+    CheckSpec {
+        language,
+        category,
+        key,
+        derivation_name,
+        display: cmd_info.display,
+        required_exec: cmd_info.required_exec,
+        command: cmd_info.command,
+        workdir: cmd_info.workdir,
+    }
+}
+
+fn generate_check_files(
+    checks_by_lang: &HashMap<Option<Language>, HashMap<CheckCategory, Vec<CheckSpec>>>,
+) -> Vec<CheckFile> {
+    let mut out = Vec::new();
+
+    let language_order = [
+        None,
+        Some(Language::Go),
+        Some(Language::Python),
+        Some(Language::JavaScript),
+        Some(Language::Rust),
+    ];
+
+    for language in language_order {
+        let Some(by_cat) = checks_by_lang.get(&language) else {
+            continue;
+        };
+
+        for category in [CheckCategory::Test, CheckCategory::Build] {
+            let Some(checks) = by_cat.get(&category) else {
+                continue;
+            };
+            if checks.is_empty() {
+                continue;
+            }
+
+            let relative_path = PathBuf::from(format!(
+                "{}/{}",
+                language_dir_name(language.as_ref()),
+                category_file_name(category)
+            ));
+
+            let desc = format!(
+                "{} {} checks",
+                language_display_name(language.clone()),
+                category_name(category)
+            );
+
+            let content = generate_check_file_content(&desc, checks);
+
+            out.push(CheckFile {
+                language: language.clone(),
+                category,
+                content,
+                relative_path,
+            });
+        }
+    }
+
+    out
+}
+
+fn generate_check_file_content(description: &str, checks: &[CheckSpec]) -> String {
     let mut out = String::new();
 
-    let key_escaped = nix_escape_string(&check.key);
-    let drv_escaped = nix_escape_string(&check.derivation_name);
-    let display_escaped = nix_escape_string(&check.display);
-    let required_exec_escaped = nix_escape_string(&check.required_exec);
-    let cmd_escaped = nix_escape_string(&check.command);
-    let workdir_escaped = nix_escape_string(&check.workdir);
+    out.push_str(&generate_file_header(description));
+    out.push_str("{ pkgs, lib, devPackages, projectRoot }:\n\n");
+    out.push_str("{\n");
 
-    out.push_str(&format!("          \"{key_escaped}\" = let\n"));
-    out.push_str(&format!("            cmd = \"{cmd_escaped}\";\n"));
-    out.push_str(&format!(
-        "            requiredExec = \"{required_exec_escaped}\";\n"
-    ));
-    out.push_str(&format!("            workdir = \"{workdir_escaped}\";\n"));
-    out.push_str(&format!("            display = \"{display_escaped}\";\n"));
-    out.push_str("          in pkgs.runCommand \"");
-    out.push_str(&drv_escaped);
-    out.push_str("\" {\n");
-    out.push_str("            nativeBuildInputs = devPackages;\n");
-    out.push_str("          } ''\n");
-    out.push_str("            set -euo pipefail\n");
-    out.push_str("            export HOME=\"$TMPDIR/home\"\n");
-    out.push_str("            mkdir -p \"$HOME\"\n");
-    out.push('\n');
-    out.push_str("            echo \"autonix: running ${display}\"\n");
-    out.push_str("            if ! command -v \"${requiredExec}\" >/dev/null 2>&1; then\n");
-    out.push_str("              echo \"autonix: missing required executable in PATH: ${requiredExec}\" >&2\n");
-    out.push_str("              exit 1\n");
-    out.push_str("            fi\n");
-    out.push('\n');
-    out.push_str("            cp -r ${./.} source\n");
-    out.push_str("            chmod -R u+w source\n");
-    out.push_str("            cd \"source/${workdir}\"\n");
-    out.push('\n');
-    out.push_str("            ${pkgs.bash}/bin/bash -lc ${lib.escapeShellArg cmd}\n");
-    out.push('\n');
-    out.push_str("            mkdir -p $out\n");
-    out.push_str("            echo ok > $out/result\n");
-    out.push_str("          '';\n");
+    for check in checks {
+        let builder = nix_builder::CheckDerivationBuilder::new(
+            check.key.clone(),
+            check.derivation_name.clone(),
+            check.display.clone(),
+            check.required_exec.clone(),
+            check.command.clone(),
+            check.workdir.clone(),
+        );
+        out.push_str(&builder.build());
+    }
+
+    out.push_str("}\n");
 
     out
 }
@@ -907,30 +1444,6 @@ fn command_first_word(command: &str) -> Option<&str> {
     command.split_whitespace().next()
 }
 
-fn writeln_nix_string(output: &mut String, name: &str, value: &str) {
-    let escaped = nix_escape_string(value);
-    output.push_str(&format!("{name} = \"{escaped}\";\n"));
-}
-
-fn nix_escape_string(input: &str) -> String {
-    let mut out = String::new();
-    let mut chars = input.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        match ch {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '$' if matches!(chars.peek(), Some('{')) => out.push_str("\\$"),
-            _ => out.push(ch),
-        }
-    }
-
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -948,6 +1461,23 @@ mod tests {
         path
     }
 
+    fn all_check_contents(flake: &GeneratedFlake) -> String {
+        flake
+            .check_files
+            .iter()
+            .map(|f| f.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn language_packages_content(flake: &GeneratedFlake, language: Language) -> Option<&str> {
+        flake
+            .language_packages
+            .iter()
+            .find(|p| p.language == language)
+            .map(|p| p.content.as_str())
+    }
+
     #[test]
     fn generates_rust_overlay_when_rust_detected() {
         let dir = TempDir::new().unwrap();
@@ -962,10 +1492,14 @@ mod tests {
         let metadata = engine.detect(dir.path());
         let flake = generate_dev_flake(&metadata, dir.path());
 
-        assert!(flake.contains("rust-overlay"));
-        assert!(flake.contains("rust-bin.stable.latest.default"));
-        assert!(flake.contains("rust-analyzer"));
-        assert!(flake.contains("rust-src"));
+        assert!(flake.main_flake.contains("rust-overlay"));
+        assert!(flake.main_flake.contains(".autonix/rust/overlay.nix"));
+        assert!(flake.rust_overlay.as_deref().is_some());
+
+        let rust_pkgs = language_packages_content(&flake, Language::Rust).unwrap();
+        assert!(rust_pkgs.contains("rust-bin.stable.latest.default"));
+        assert!(rust_pkgs.contains("rust-analyzer"));
+        assert!(rust_pkgs.contains("rust-src"));
     }
 
     #[test]
@@ -985,8 +1519,9 @@ mod tests {
         let metadata = engine.detect(dir.path());
         let flake = generate_dev_flake(&metadata, dir.path());
 
-        assert!(flake.contains("pnpm run test"));
-        assert!(flake.contains("jest"));
+        let checks = all_check_contents(&flake);
+        assert!(checks.contains("pnpm run test"));
+        assert!(checks.contains("jest"));
     }
 
     #[test]
@@ -1006,7 +1541,8 @@ mod tests {
         let metadata = engine.detect(dir.path());
         let flake = generate_dev_flake(&metadata, dir.path());
 
-        assert!(flake.contains("pnpm run test"));
+        let checks = all_check_contents(&flake);
+        assert!(checks.contains("pnpm run test"));
     }
 
     #[test]
@@ -1025,7 +1561,8 @@ mod tests {
         let metadata = engine.detect(dir.path());
         let flake = generate_dev_flake(&metadata, dir.path());
 
-        assert!(flake.contains("npm run test"));
+        let checks = all_check_contents(&flake);
+        assert!(checks.contains("npm run test"));
     }
 
     #[test]
@@ -1038,6 +1575,524 @@ mod tests {
         let metadata = engine.detect(dir.path());
         let flake = generate_dev_flake(&metadata, dir.path());
 
-        assert!(flake.contains("go_1_21"));
+        let go_pkgs = language_packages_content(&flake, Language::Go).unwrap();
+        assert!(go_pkgs.contains("go_1_21"));
+    }
+
+    #[test]
+    fn test_multi_language_project_generates_all_packages() {
+        let dir = TempDir::new().unwrap();
+
+        create_temp_file(&dir, "go.mod", "module example.com\n\ngo 1.21\n");
+        create_temp_file(&dir, "main.go", "package main\nfunc main(){}\n");
+        create_temp_file(
+            &dir,
+            "package.json",
+            r#"{"name": "test", "scripts": {"test": "jest"}}"#,
+        );
+        create_temp_file(
+            &dir,
+            "pyproject.toml",
+            "[project]\nname = \"test\"\nrequires-python = \">=3.11\"\n",
+        );
+        create_temp_file(
+            &dir,
+            "Cargo.toml",
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"\n",
+        );
+        create_temp_file(&dir, "src/main.rs", "fn main() {}\n");
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+        let flake = generate_dev_flake(&metadata, dir.path());
+
+        assert_eq!(flake.language_packages.len(), 4);
+        assert!(
+            flake
+                .language_packages
+                .iter()
+                .any(|p| p.language == Language::Go)
+        );
+        assert!(
+            flake
+                .language_packages
+                .iter()
+                .any(|p| p.language == Language::Python)
+        );
+        assert!(
+            flake
+                .language_packages
+                .iter()
+                .any(|p| p.language == Language::JavaScript)
+        );
+        assert!(
+            flake
+                .language_packages
+                .iter()
+                .any(|p| p.language == Language::Rust)
+        );
+
+        assert!(flake.main_flake.contains("golangPackages"));
+        assert!(flake.main_flake.contains("pythonPackages"));
+        assert!(flake.main_flake.contains("nodejsPackages"));
+        assert!(flake.main_flake.contains("rustPackages"));
+    }
+
+    #[test]
+    fn test_check_key_deduplication_for_slug_collisions() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(
+            &dir,
+            "package.json",
+            r#"{"scripts": {"test:unit": "echo one", "test_unit": "echo two"}}"#,
+        );
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+        let flake = generate_dev_flake(&metadata, dir.path());
+
+        let checks = all_check_contents(&flake);
+        assert!(checks.contains("\"nodejs-test-npmscripts-test-unit-package-json\""));
+        assert!(checks.contains("\"nodejs-test-npmscripts-test-unit-package-json-2\""));
+    }
+
+    #[test]
+    fn test_nested_package_json_workdir_resolution() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir_all(dir.path().join("packages/frontend")).unwrap();
+        create_temp_file(
+            &dir,
+            "packages/frontend/package.json",
+            r#"{"scripts": {"test": "vitest"}}"#,
+        );
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+        let flake = generate_dev_flake(&metadata, dir.path());
+
+        let checks = all_check_contents(&flake);
+        assert!(checks.contains("workdir = \"packages/frontend\";"));
+    }
+
+    #[test]
+    fn test_version_fallback_when_unavailable() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(
+            &dir,
+            "pyproject.toml",
+            "[project]\nrequires-python = \">=3.99\"\n",
+        );
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+        let flake = generate_dev_flake(&metadata, dir.path());
+
+        let python_pkgs = language_packages_content(&flake, Language::Python).unwrap();
+        assert!(python_pkgs.contains("wantPythonAttr = \"python399\""));
+        assert!(python_pkgs.contains("else \"python3\""));
+    }
+
+    #[test]
+    fn test_nix_escape_quotes() {
+        assert_eq!(
+            nix_builder::escape_nix_string(r#"hello "world""#),
+            r#"hello \"world\""#
+        );
+    }
+
+    #[test]
+    fn test_nix_escape_dollar_brace() {
+        assert_eq!(nix_builder::escape_nix_string("${foo}"), r"\${foo}");
+        assert_eq!(nix_builder::escape_nix_string("$foo"), "$foo");
+    }
+
+    #[test]
+    fn test_nix_escape_backslash() {
+        assert_eq!(nix_builder::escape_nix_string(r"foo\bar"), r"foo\\bar");
+    }
+
+    #[test]
+    fn test_nix_escape_newlines_tabs() {
+        assert_eq!(
+            nix_builder::escape_nix_string("foo\nbar\ttab"),
+            "foo\\nbar\\ttab"
+        );
+    }
+
+    #[test]
+    fn test_nix_escape_combined() {
+        assert_eq!(
+            nix_builder::escape_nix_string(r#"echo "${VAR}" > file\nend"#),
+            r#"echo \"\${VAR}\" > file\\nend"#
+        );
+    }
+
+    #[test]
+    fn test_best_version_info_prefers_highest_version() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(&dir, "go.mod", "module example.com\n\ngo 1.21\n");
+        create_temp_file(&dir, ".go-version", "1.19\n");
+        create_temp_file(&dir, "main.go", "package main\nfunc main(){}\n");
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+        let version = best_version_info(&metadata, Language::Go, constants::GO_VERSION_SOURCES);
+
+        let parsed = version.unwrap().parsed.as_ref().unwrap();
+        assert_eq!(parsed.major, Some(1));
+        assert_eq!(parsed.minor, Some(21));
+    }
+
+    #[test]
+    fn test_best_version_info_filters_by_allowed_sources() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(&dir, ".node-version", "18.0.0\n");
+        create_temp_file(&dir, ".bun-version", "999.0.0\n");
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect(dir.path());
+        let version = best_version_info(
+            &metadata,
+            Language::JavaScript,
+            constants::NODE_VERSION_SOURCES,
+        )
+        .unwrap();
+
+        assert!(matches!(version.source, VersionSource::NodeVersionFile));
+        assert_eq!(version.raw, "18.0.0");
+    }
+
+    #[test]
+    fn test_python_attr_from_version() {
+        let version = SemanticVersion {
+            major: Some(3),
+            minor: Some(11),
+            patch: None,
+            pre_release: None,
+            build: None,
+            constraint: VersionConstraint::Exact,
+        };
+        assert_eq!(
+            python_attr_from_version(&version),
+            Some("python311".to_string())
+        );
+    }
+
+    #[test]
+    fn test_python_attr_from_version_missing_minor() {
+        let version = SemanticVersion {
+            major: Some(3),
+            minor: None,
+            patch: None,
+            pre_release: None,
+            build: None,
+            constraint: VersionConstraint::Exact,
+        };
+        assert_eq!(python_attr_from_version(&version), None);
+    }
+
+    #[test]
+    fn test_node_attr_from_version() {
+        let version = SemanticVersion {
+            major: Some(20),
+            minor: Some(10),
+            patch: Some(0),
+            pre_release: None,
+            build: None,
+            constraint: VersionConstraint::Exact,
+        };
+        assert_eq!(
+            node_attr_from_version(&version),
+            Some("nodejs_20".to_string())
+        );
+    }
+
+    #[test]
+    fn test_go_attr_from_version() {
+        let version = SemanticVersion {
+            major: Some(1),
+            minor: Some(21),
+            patch: Some(3),
+            pre_release: None,
+            build: None,
+            constraint: VersionConstraint::Exact,
+        };
+        assert_eq!(go_attr_from_version(&version), Some("go_1_21".to_string()));
+    }
+
+    #[test]
+    fn test_slugify_identifier() {
+        assert_eq!(slugify_identifier("test:build"), "test-build");
+        assert_eq!(slugify_identifier("my_test___name"), "my-test-name");
+        assert_eq!(slugify_identifier("CamelCase"), "camelcase");
+        assert_eq!(slugify_identifier("multiple---dashes"), "multiple-dashes");
+    }
+
+    #[test]
+    fn test_infer_check_language_from_cargo() {
+        let lang = infer_check_language(TaskRunner::Cargo, "cargo", None);
+        assert_eq!(lang, Some(Language::Rust));
+    }
+
+    #[test]
+    fn test_infer_check_language_from_npm_scripts() {
+        let lang = infer_check_language(TaskRunner::NpmScripts, "npm", None);
+        assert_eq!(lang, Some(Language::JavaScript));
+    }
+
+    #[test]
+    fn test_infer_check_language_falls_back_to_primary() {
+        let lang = infer_check_language(TaskRunner::Make, "make", Some(Language::Python));
+        assert_eq!(lang, Some(Language::Python));
+    }
+
+    #[test]
+    fn test_resolve_task_command_direct() {
+        let dir = TempDir::new().unwrap();
+        let cmd = TaskCommand {
+            name: "test".to_string(),
+            executable: CommandExecutable::Direct {
+                command: "cargo test".to_string(),
+            },
+            description: None,
+        };
+
+        let (info, pm) = resolve_task_command(&cmd, dir.path());
+        assert_eq!(info.required_exec, "cargo");
+        assert_eq!(info.command, "cargo test");
+        assert_eq!(info.workdir, ".");
+        assert_eq!(info.display, "cargo test");
+        assert!(pm.is_none());
+    }
+
+    #[test]
+    fn test_build_check_spec_deduplication() {
+        let mut key_counts = HashMap::new();
+        let cmd = TaskCommand {
+            name: "test".to_string(),
+            executable: CommandExecutable::Direct {
+                command: "npm test".to_string(),
+            },
+            description: None,
+        };
+        let info = CommandInfo {
+            required_exec: "npm".to_string(),
+            command: "npm test".to_string(),
+            workdir: ".".to_string(),
+            display: "npm test".to_string(),
+        };
+
+        let spec1 = build_check_spec(
+            &cmd,
+            info.clone(),
+            Some(Language::JavaScript),
+            CheckCategory::Test,
+            TaskRunner::NpmScripts,
+            "root",
+            &mut key_counts,
+        );
+
+        let spec2 = build_check_spec(
+            &cmd,
+            info,
+            Some(Language::JavaScript),
+            CheckCategory::Test,
+            TaskRunner::NpmScripts,
+            "root",
+            &mut key_counts,
+        );
+
+        assert_ne!(spec1.key, spec2.key);
+        assert!(spec2.key.ends_with("-2"));
+    }
+
+    #[test]
+    fn test_resolve_js_pm_from_package_json_field() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(&dir, "package.json", r#"{"packageManager": "pnpm@9.0.0"}"#);
+        assert_eq!(resolve_js_package_manager(&path), PackageManager::Pnpm);
+    }
+
+    #[test]
+    fn test_resolve_js_pm_from_lockfile_bun() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(&dir, "package.json", r#"{"name": "test"}"#);
+        create_temp_file(&dir, "bun.lockb", "");
+
+        let pm = resolve_js_package_manager(&dir.path().join("package.json"));
+        assert_eq!(pm, PackageManager::Bun);
+    }
+
+    #[test]
+    fn test_resolve_js_pm_from_lockfile_pnpm() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(&dir, "package.json", r#"{"name": "test"}"#);
+        create_temp_file(&dir, "pnpm-lock.yaml", "");
+
+        let pm = resolve_js_package_manager(&dir.path().join("package.json"));
+        assert_eq!(pm, PackageManager::Pnpm);
+    }
+
+    #[test]
+    fn test_resolve_js_pm_defaults_to_npm() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(&dir, "package.json", r#"{"name": "test"}"#);
+
+        let pm = resolve_js_package_manager(&dir.path().join("package.json"));
+        assert_eq!(pm, PackageManager::Npm);
+    }
+
+    #[test]
+    fn test_read_package_json_manager_missing_field() {
+        let dir = TempDir::new().unwrap();
+        let path = create_temp_file(&dir, "package.json", r#"{"name": "test"}"#);
+        assert_eq!(read_package_json_manager(&path), None);
+    }
+
+    #[test]
+    fn test_detect_lockfile_manager_bun_priority() {
+        let dir = TempDir::new().unwrap();
+        create_temp_file(&dir, "bun.lockb", "");
+        create_temp_file(&dir, "package-lock.json", "");
+
+        assert_eq!(
+            detect_lockfile_manager(dir.path()),
+            Some(PackageManager::Bun)
+        );
+    }
+
+    #[test]
+    fn test_detect_lockfile_manager_no_lockfile() {
+        let dir = TempDir::new().unwrap();
+        assert_eq!(detect_lockfile_manager(dir.path()), None);
+    }
+
+    #[test]
+    fn test_relativize_path_basic() {
+        let dir = TempDir::new().unwrap();
+        let subdir = dir.path().join("sub");
+        fs::create_dir_all(&subdir).unwrap();
+
+        let rel = relativize_path(dir.path(), &subdir).unwrap();
+        assert_eq!(rel.to_str().unwrap(), "sub");
+    }
+
+    #[test]
+    fn test_relativize_path_same_dir() {
+        let dir = TempDir::new().unwrap();
+
+        let rel = relativize_path(dir.path(), dir.path()).unwrap();
+        assert_eq!(rel.to_str().unwrap(), "");
+    }
+
+    #[test]
+    fn test_go_notice_with_patch_version() {
+        let version_info = VersionInfo {
+            raw: "1.21.3".to_string(),
+            source: VersionSource::GoModDirective,
+            parsed: Some(SemanticVersion {
+                major: Some(1),
+                minor: Some(21),
+                patch: Some(3),
+                pre_release: None,
+                build: None,
+                constraint: VersionConstraint::Exact,
+            }),
+            path: PathBuf::from("go.mod"),
+        };
+
+        let notice = go_notice(Some(&version_info), Some("go_1_21")).unwrap();
+        assert!(notice.contains("1.21.3"));
+        assert!(notice.contains("go_1_21"));
+        assert!(notice.contains("patch may differ"));
+    }
+
+    #[test]
+    fn test_python_notice_with_constraint() {
+        let version_info = VersionInfo {
+            raw: ">=3.10".to_string(),
+            source: VersionSource::PyprojectRequiresPython,
+            parsed: Some(SemanticVersion {
+                major: Some(3),
+                minor: Some(10),
+                patch: None,
+                pre_release: None,
+                build: None,
+                constraint: VersionConstraint::GreaterOrEqual,
+            }),
+            path: PathBuf::from("pyproject.toml"),
+        };
+
+        let notice = python_notice(Some(&version_info), Some("python310")).unwrap();
+        assert!(notice.contains(">=3.10"));
+        assert!(notice.contains("patch may differ"));
+    }
+
+    #[test]
+    fn test_generate_version_notice() {
+        let version_info = VersionInfo {
+            raw: "1.21.3".to_string(),
+            source: VersionSource::GoModDirective,
+            parsed: Some(SemanticVersion {
+                major: Some(1),
+                minor: Some(21),
+                patch: Some(3),
+                pre_release: None,
+                build: None,
+                constraint: VersionConstraint::Exact,
+            }),
+            path: PathBuf::from("go.mod"),
+        };
+
+        let notice = generate_version_notice(
+            "Go",
+            Some(&version_info),
+            Some("go_1_21"),
+            "go",
+            Some("note: test"),
+        )
+        .unwrap();
+
+        assert!(notice.contains("Go: requested 1.21.3"));
+        assert!(notice.contains("go_1_21"));
+        assert!(notice.contains("note: test"));
+    }
+
+    #[test]
+    fn test_generate_flake_inputs_without_rust_overlay() {
+        let result = generate_flake_inputs(false);
+        assert!(result.contains("nixpkgs.url"));
+        assert!(result.contains("flake-utils.url"));
+        assert!(!result.contains("rust-overlay"));
+    }
+
+    #[test]
+    fn test_generate_flake_inputs_with_rust_overlay() {
+        let result = generate_flake_inputs(true);
+        assert!(result.contains("rust-overlay"));
+        assert!(result.contains("oxalica/rust-overlay"));
+    }
+
+    #[test]
+    fn test_generate_devshell_binding_all_languages() {
+        let result = generate_devshell_binding(true, true, true, true);
+        assert!(result.contains("golangPackages.go"));
+        assert!(result.contains("pythonPackages.python"));
+        assert!(result.contains("nodejsPackages.node"));
+        assert!(result.contains("rustPackages.rustToolchain"));
+    }
+
+    #[test]
+    fn test_generate_checks_binding_empty() {
+        let result = generate_checks_binding(&[]);
+        assert_eq!(result.trim(), "checks = {};");
+    }
+
+    #[test]
+    fn test_command_first_word() {
+        assert_eq!(command_first_word("npm run test"), Some("npm"));
+        assert_eq!(command_first_word("cargo build --release"), Some("cargo"));
+        assert_eq!(command_first_word("  spaced  "), Some("spaced"));
+        assert_eq!(command_first_word(""), None);
     }
 }
