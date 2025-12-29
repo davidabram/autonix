@@ -62,6 +62,11 @@
           cli = autonix;
         };
 
+        generationGoldenTests = import ./tests/generation/check-repos.nix {
+          inherit pkgs;
+          cli = autonix;
+        };
+
         coverage = pkgs.rustPlatform.buildRustPackage {
           pname = "autonix-coverage";
           version = "0.1.0";
@@ -105,7 +110,7 @@
           autonix = autonix;
         };
 
-        checks = goldenTests // {
+        checks = goldenTests // generationGoldenTests // {
           unit-tests = unitTests;
           coverage = coverage;
         };

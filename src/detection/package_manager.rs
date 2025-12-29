@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Hash)]
 pub enum PackageManager {
     // JavaScript
     Npm,

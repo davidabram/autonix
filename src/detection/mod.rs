@@ -23,12 +23,23 @@ pub struct ProjectMetadata {
     pub task_runners: Vec<TaskRunnerDetection>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DetectionScope {
+    #[default]
+    All,
+    Root,
+}
+
 #[derive(Default)]
 pub struct DetectionEngine;
 
 impl DetectionEngine {
     pub fn detect(&self, path: &Path) -> ProjectMetadata {
-        let paths: Vec<PathBuf> = DirectoryIterator(VecDeque::from([path.to_path_buf()])).collect();
+        self.detect_with_scope(path, DetectionScope::All)
+    }
+
+    pub fn detect_with_scope(&self, path: &Path, scope: DetectionScope) -> ProjectMetadata {
+        let paths: Vec<PathBuf> = DirectoryIterator::new(path.to_path_buf(), scope).collect();
 
         let languages: Vec<LanguageDetection> = paths
             .iter()
@@ -110,9 +121,21 @@ const IGNORED_DIR_BASENAMES: &[&str] = &[
     ".terraform",
 ];
 
-struct DirectoryIterator(VecDeque<PathBuf>);
+struct DirectoryIterator {
+    queue: VecDeque<PathBuf>,
+    root: PathBuf,
+    scope: DetectionScope,
+}
 
 impl DirectoryIterator {
+    fn new(root: PathBuf, scope: DetectionScope) -> Self {
+        Self {
+            queue: VecDeque::from([root.clone()]),
+            root,
+            scope,
+        }
+    }
+
     fn should_ignore_dir(path: &Path) -> bool {
         path.file_name()
             .and_then(|name| name.to_str())
@@ -124,14 +147,27 @@ impl DirectoryIterator {
 impl Iterator for DirectoryIterator {
     type Item = PathBuf;
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.pop_front().inspect(|p| {
-            if p.is_dir()
-                && !Self::should_ignore_dir(p)
-                && let Ok(entries) = p.read_dir()
-            {
-                entries
-                    .filter_map(|entry| entry.ok())
-                    .for_each(|entry| self.0.push_back(entry.path()));
+        self.queue.pop_front().inspect(|p| match self.scope {
+            DetectionScope::All => {
+                if p.is_dir()
+                    && !Self::should_ignore_dir(p)
+                    && let Ok(entries) = p.read_dir()
+                {
+                    entries
+                        .filter_map(|entry| entry.ok())
+                        .for_each(|entry| self.queue.push_back(entry.path()));
+                }
+            }
+            DetectionScope::Root => {
+                if p == &self.root
+                    && p.is_dir()
+                    && !Self::should_ignore_dir(p)
+                    && let Ok(entries) = p.read_dir()
+                {
+                    entries
+                        .filter_map(|entry| entry.ok())
+                        .for_each(|entry| self.queue.push_back(entry.path()));
+                }
             }
         })
     }
@@ -157,7 +193,7 @@ mod tests {
     #[test]
     fn test_directory_iterator_empty() {
         let dir = TempDir::new().unwrap();
-        let iterator = DirectoryIterator(VecDeque::from([dir.path().to_path_buf()]));
+        let iterator = DirectoryIterator::new(dir.path().to_path_buf(), DetectionScope::All);
         let paths: Vec<PathBuf> = iterator.collect();
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0], dir.path());
@@ -169,7 +205,7 @@ mod tests {
         create_temp_file(&dir, "file1.txt", "content");
         create_temp_file(&dir, "file2.rs", "fn main() {}");
 
-        let iterator = DirectoryIterator(VecDeque::from([dir.path().to_path_buf()]));
+        let iterator = DirectoryIterator::new(dir.path().to_path_buf(), DetectionScope::All);
         let paths: Vec<PathBuf> = iterator.collect();
 
         assert!(paths.len() >= 3);
@@ -183,7 +219,7 @@ mod tests {
         create_temp_file(&dir, "file1.txt", "content");
         create_temp_file(&dir, "subdir/file2.txt", "content");
 
-        let iterator = DirectoryIterator(VecDeque::from([dir.path().to_path_buf()]));
+        let iterator = DirectoryIterator::new(dir.path().to_path_buf(), DetectionScope::All);
         let paths: Vec<PathBuf> = iterator.collect();
 
         assert!(paths.iter().any(|p| p.ends_with("subdir")));
@@ -194,7 +230,7 @@ mod tests {
     #[test]
     fn test_directory_iterator_nonexistent_path() {
         let nonexistent = PathBuf::from("/nonexistent/path/that/does/not/exist");
-        let iterator = DirectoryIterator(VecDeque::from([nonexistent.clone()]));
+        let iterator = DirectoryIterator::new(nonexistent.clone(), DetectionScope::All);
         let paths: Vec<PathBuf> = iterator.collect();
 
         assert_eq!(paths.len(), 1);
@@ -334,6 +370,38 @@ rust-version = "1.70.0"
         let metadata = engine.detect(dir.path());
 
         assert_eq!(metadata.languages.len(), 2);
+    }
+
+    #[test]
+    fn test_detection_engine_root_scope_ignores_nested_directories() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join("backend")).unwrap();
+
+        create_temp_file(&dir, "backend/go.mod", "module example.com\n\ngo 1.21\n");
+        create_temp_file(&dir, "backend/main.go", "package main");
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect_with_scope(dir.path(), DetectionScope::Root);
+
+        assert!(metadata.languages.is_empty());
+        assert!(metadata.versions.is_empty());
+        assert!(metadata.package_managers.is_empty());
+        assert!(metadata.task_runners.is_empty());
+    }
+
+    #[test]
+    fn test_detection_engine_root_scope_detects_root_files_only() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join("frontend")).unwrap();
+
+        create_temp_file(&dir, "Cargo.toml", "[package]\nname = \"test\"\n");
+        create_temp_file(&dir, "frontend/package.json", "{}");
+
+        let engine = DetectionEngine;
+        let metadata = engine.detect_with_scope(dir.path(), DetectionScope::Root);
+
+        assert_eq!(metadata.languages.len(), 1);
+        assert!(matches!(metadata.languages[0].language, Language::Rust));
     }
 
     #[test]

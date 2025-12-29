@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Hash)]
 pub enum VersionSource {
     GoModDirective,
     GoVersionFile,

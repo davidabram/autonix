@@ -2,7 +2,10 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CommandCategory {
@@ -1884,36 +1887,21 @@ commands = flake8 src/
         assert_eq!(detection.commands.test.len(), 2);
         assert_eq!(detection.commands.other.len(), 1);
 
-        assert!(
-            detection
-                .commands
-                .test
-                .iter()
-                .any(|c| c.name == "py39" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "tox -e py39"
-                ))
-        );
-        assert!(
-            detection
-                .commands
-                .test
-                .iter()
-                .any(|c| c.name == "py310" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "tox -e py310"
-                ))
-        );
-        assert!(
-            detection
-                .commands
-                .other
-                .iter()
-                .any(|c| c.name == "lint" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "tox -e lint"
-                ))
-        );
+        assert!(detection.commands.test.iter().any(|c| c.name == "py39"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "tox -e py39"
+            )));
+        assert!(detection.commands.test.iter().any(|c| c.name == "py310"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "tox -e py310"
+            )));
+        assert!(detection.commands.other.iter().any(|c| c.name == "lint"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "tox -e lint"
+            )));
     }
 
     #[test]
@@ -1992,24 +1980,16 @@ def integration_tests(session):
         let commands = extract_nox_commands(content);
         assert_eq!(commands.test.len(), 2);
 
-        assert!(
-            commands
-                .test
-                .iter()
-                .any(|c| c.name == "unit-tests" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s unit-tests"
-                ))
-        );
-        assert!(
-            commands
-                .test
-                .iter()
-                .any(|c| c.name == "integration-tests" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s integration-tests"
-                ))
-        );
+        assert!(commands.test.iter().any(|c| c.name == "unit-tests"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s unit-tests"
+            )));
+        assert!(commands.test.iter().any(|c| c.name == "integration-tests"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s integration-tests"
+            )));
     }
 
     #[test]
@@ -2032,33 +2012,21 @@ def py311(session):
         let commands = extract_nox_commands(content);
         assert_eq!(commands.test.len(), 3);
 
-        assert!(
-            commands
-                .test
-                .iter()
-                .any(|c| c.name == "py39" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s py39"
-                ))
-        );
-        assert!(
-            commands
-                .test
-                .iter()
-                .any(|c| c.name == "py310" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s py310"
-                ))
-        );
-        assert!(
-            commands
-                .test
-                .iter()
-                .any(|c| c.name == "py311" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s py311"
-                ))
-        );
+        assert!(commands.test.iter().any(|c| c.name == "py39"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s py39"
+            )));
+        assert!(commands.test.iter().any(|c| c.name == "py310"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s py310"
+            )));
+        assert!(commands.test.iter().any(|c| c.name == "py311"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s py311"
+            )));
     }
 
     #[test]
@@ -2115,24 +2083,16 @@ def run_coverage(session):
         assert_eq!(commands.test.len(), 1);
         assert_eq!(commands.other.len(), 1);
 
-        assert!(
-            commands
-                .test
-                .iter()
-                .any(|c| c.name == "tests" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s tests"
-                ))
-        );
-        assert!(
-            commands
-                .other
-                .iter()
-                .any(|c| c.name == "coverage" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s coverage"
-                ))
-        );
+        assert!(commands.test.iter().any(|c| c.name == "tests"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s tests"
+            )));
+        assert!(commands.other.iter().any(|c| c.name == "coverage"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s coverage"
+            )));
     }
 
     #[test]
@@ -2229,36 +2189,21 @@ def build(session):
         assert_eq!(detection.commands.build.len(), 1);
         assert_eq!(detection.commands.other.len(), 1);
 
-        assert!(
-            detection
-                .commands
-                .test
-                .iter()
-                .any(|c| c.name == "test" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s test"
-                ))
-        );
-        assert!(
-            detection
-                .commands
-                .build
-                .iter()
-                .any(|c| c.name == "build" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s build"
-                ))
-        );
-        assert!(
-            detection
-                .commands
-                .other
-                .iter()
-                .any(|c| c.name == "lint" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "nox -s lint"
-                ))
-        );
+        assert!(detection.commands.test.iter().any(|c| c.name == "test"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s test"
+            )));
+        assert!(detection.commands.build.iter().any(|c| c.name == "build"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s build"
+            )));
+        assert!(detection.commands.other.iter().any(|c| c.name == "lint"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "nox -s lint"
+            )));
     }
 
     #[test]
@@ -2529,35 +2474,20 @@ def build(c):
         assert_eq!(detection.commands.build.len(), 1);
         assert_eq!(detection.commands.other.len(), 1);
 
-        assert!(
-            detection
-                .commands
-                .test
-                .iter()
-                .any(|c| c.name == "test" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "invoke test"
-                ))
-        );
-        assert!(
-            detection
-                .commands
-                .build
-                .iter()
-                .any(|c| c.name == "build" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "invoke build"
-                ))
-        );
-        assert!(
-            detection
-                .commands
-                .other
-                .iter()
-                .any(|c| c.name == "lint" && matches!(
-                    &c.executable,
-                    CommandExecutable::Direct { command } if command == "invoke lint"
-                ))
-        );
+        assert!(detection.commands.test.iter().any(|c| c.name == "test"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "invoke test"
+            )));
+        assert!(detection.commands.build.iter().any(|c| c.name == "build"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "invoke build"
+            )));
+        assert!(detection.commands.other.iter().any(|c| c.name == "lint"
+            && matches!(
+                &c.executable,
+                CommandExecutable::Direct { command } if command == "invoke lint"
+            )));
     }
 }
