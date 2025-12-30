@@ -46,22 +46,22 @@ let
 
                 normalize() {
                   python3 - "$1" <<'PY'
-          import sys
-          from pathlib import Path
+        import sys
+        from pathlib import Path
 
-          path = Path(sys.argv[1])
-          raw = path.read_bytes().decode("utf-8", errors="replace")
-          raw = raw.replace("\r", "")
+        path = Path(sys.argv[1])
+        raw = path.read_bytes().decode("utf-8", errors="replace")
+        raw = raw.replace("\r", "")
 
-          lines = raw.split("\n")
-          lines = [line.rstrip(" \t") for line in lines]
+        lines = raw.split("\n")
+        lines = [line.rstrip(" \t") for line in lines]
 
-          normalized = "\n".join(lines).rstrip("\n") + "\n"
-          sys.stdout.write(normalized)
-          PY
+        normalized = "\n".join(lines).rstrip("\n") + "\n"
+        sys.stdout.write(normalized)
+        PY
                 }
 
-                normalize "$WORKSPACE/${repo.name}/flake.nix" > "$TMPDIR/actual-flake-normalized.nix"
+                normalize "$WORKSPACE/${repo.name}/.autonix/flake.nix" > "$TMPDIR/actual-flake-normalized.nix"
                 normalize ${goldenFlake} > "$TMPDIR/expected-flake-normalized.nix"
 
                 if ! diff -u "$TMPDIR/expected-flake-normalized.nix" "$TMPDIR/actual-flake-normalized.nix" > "$TMPDIR/flake-diff.txt"; then
@@ -96,13 +96,13 @@ let
                   exit 1
                 fi
 
-        mkdir -p $out
-        cp "$TMPDIR/stdout.log" $out/stdout.log
-        cp "$TMPDIR/stderr.log" $out/stderr.log
-        cp "$WORKSPACE/${repo.name}/.autonix/flake.nix" $out/flake.nix
-        cp ${goldenFlake} $out/golden-flake.nix
-        cp -r "$WORKSPACE/${repo.name}/.autonix" $out/actual-autonix
-        cp -r ${goldenAutonixDir} $out/golden-autonix
+                mkdir -p $out
+                cp "$TMPDIR/stdout.log" $out/stdout.log
+                cp "$TMPDIR/stderr.log" $out/stderr.log
+                cp "$WORKSPACE/${repo.name}/.autonix/flake.nix" $out/flake.nix
+                cp ${goldenFlake} $out/golden-flake.nix
+                cp -r "$WORKSPACE/${repo.name}/.autonix" $out/actual-autonix
+                cp -r ${goldenAutonixDir} $out/golden-autonix
 
                 python3 -c 'import json,sys; print(json.dumps({"repository": "${repo.name}", "source": "${repo.owner}/${repo.repo}", "revision": "${repo.rev}", "status": "passed", "test_type": "golden-generation"}, indent=2))' > $out/summary.json
 
