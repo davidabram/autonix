@@ -11,6 +11,8 @@ result-*
 lcov.info
 coverage-summary.txt
 
+tests/**/flake.lock
+
 .vscode/
 .idea/
 *.swp

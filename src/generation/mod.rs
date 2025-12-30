@@ -15,11 +15,10 @@ pub use dev_flake::{CheckCategory, CheckFile, GeneratedFlake, LanguagePackages};
 pub fn write_dev_flake(metadata: &ProjectMetadata, root: &Path) -> Result<(), std::io::Error> {
     let flake = generate_dev_flake(metadata, root);
 
-    fs::write(root.join("flake.nix"), flake.main_flake)?;
-
     let autonix_dir = root.join(".autonix");
     fs::create_dir_all(&autonix_dir)?;
 
+    fs::write(autonix_dir.join("flake.nix"), flake.main_flake)?;
     fs::write(autonix_dir.join("devShell.nix"), flake.devshell)?;
 
     if let Some(overlay) = flake.rust_overlay {
