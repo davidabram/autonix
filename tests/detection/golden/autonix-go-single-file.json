@@ -1,0 +1,15 @@
+{
+  "languages": [
+    {
+      "language": "Go",
+      "sources": [
+        {
+          "Weak": "GoFile"
+        }
+      ]
+    }
+  ],
+  "versions": [],
+  "package_managers": [],
+  "task_runners": []
+}

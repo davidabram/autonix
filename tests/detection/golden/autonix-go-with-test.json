@@ -1,0 +1,106 @@
+{
+  "languages": [
+    {
+      "language": "Go",
+      "sources": [
+        {
+          "Weak": "GoFile"
+        },
+        {
+          "Strong": {
+            "path": "./go.mod",
+            "source": "GoMod"
+          }
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "language": "Go",
+      "versions": [
+        {
+          "raw": "1.25.4",
+          "parsed": {
+            "major": 1,
+            "minor": 25,
+            "patch": 4,
+            "pre_release": null,
+            "build": null,
+            "constraint": "Exact"
+          },
+          "source": "GoModDirective",
+          "path": "./go.mod"
+        }
+      ]
+    }
+  ],
+  "package_managers": [
+    {
+      "language": "Go",
+      "package_managers": [
+        {
+          "package_manager": "Go",
+          "source": "GoMod",
+          "path": "./go.mod",
+          "version": null
+        }
+      ]
+    }
+  ],
+  "task_runners": [
+    {
+      "task_runner": "GoTask",
+      "source": "GoMod",
+      "path": "./go.mod",
+      "commands": {
+        "test": [
+          {
+            "name": "test",
+            "executable": {
+              "type": "Direct",
+              "command": "go test ./..."
+            },
+            "description": "Run tests"
+          }
+        ],
+        "build": [
+          {
+            "name": "build",
+            "executable": {
+              "type": "Direct",
+              "command": "go build"
+            },
+            "description": "Build project"
+          }
+        ],
+        "other": [
+          {
+            "name": "run",
+            "executable": {
+              "type": "Direct",
+              "command": "go run ."
+            },
+            "description": "Run project"
+          },
+          {
+            "name": "fmt",
+            "executable": {
+              "type": "Direct",
+              "command": "go fmt ./..."
+            },
+            "description": "Format code"
+          },
+          {
+            "name": "vet",
+            "executable": {
+              "type": "Direct",
+              "command": "go vet ./..."
+            },
+            "description": "Examine code for issues"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -34,6 +34,48 @@
       "repo": "traefik",
       "rev": "v3.2.3",
       "hash": "sha256-OF5HCuMBWSa1JfNE6xu46Oa3sIBHLSrSSXm3M3kTuXU="
+    },
+    {
+      "name": "autonix-go-single-file",
+      "owner": "davidabram",
+      "repo": "autonix-go",
+      "rev": "44de306edbc4e7f51900a78a017e2939b7470084",
+      "hash": "sha256-bW7wmtXYwhCDDEY3/L6C1XU3zaQFj/xyLyDGjZN6r9c="
+    },
+    {
+      "name": "autonix-go-with-gomod",
+      "owner": "davidabram",
+      "repo": "autonix-go",
+      "rev": "9cc0706ad7fd533fdf14cc566f663c55f7b1ac95",
+      "hash": "sha256-A4xL+Yy6dAfru+aXJ6Q9kqMD+zaK6t2eU5AabDiTrGM="
+    },
+    {
+      "name": "autonix-go-with-test",
+      "owner": "davidabram",
+      "repo": "autonix-go",
+      "rev": "451deabf238180616f2f40764d85b2ae547cbd28",
+      "hash": "sha256-/vEjs6hEobDCTeRdqOgPtGmawP1npEPhy5IVTueJyFA="
+    },
+    {
+      "name": "autonix-go-with-makefile",
+      "owner": "davidabram",
+      "repo": "autonix-go",
+      "rev": "ef9b8bc9f5f76f5e3fd7fe142e8c3ed5bad97235",
+      "hash": "sha256-hSeNsj55kwu54eNzJ+PCL96MgZC2d4Oi6nVidPoTiLs="
+    },
+    {
+      "name": "autonix-go-with-justfile",
+      "owner": "davidabram",
+      "repo": "autonix-go",
+      "rev": "c3611992b06fec37bc37f22e181e65b5cdf5b80a",
+      "hash": "sha256-aqecczjqr2RJFKrttyKJnOCO2Tyv8blA5uV6wctarcA="
+    },
+    {
+      "name": "autonix-go-with-taskfile",
+      "owner": "davidabram",
+      "repo": "autonix-go",
+      "rev": "458ee2826200dd456bdf63c0a75f3bd673a41824",
+      "hash": "sha256-PXrlMF1ZuOMx+lxm2A4RKvXwIUqM9VHP8n6fMal/eaI="
     }
   ]
 }
