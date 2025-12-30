@@ -19,16 +19,33 @@
         pkgs = import nixpkgs { inherit system; };
         lib = pkgs.lib;
 
-        devPackages = [];
+        golangPackages = import ./golang/packages.nix { inherit pkgs lib; };
 
-        notices = [];
+        genericPackages = [
+          pkgs.gnumake
+        ];
+
+        devPackages = []
+          ++ genericPackages
+          ++ golangPackages.packages;
+
+        notices = []
+          ++ golangPackages.notices;
+
+        projectRoot = ./..;
 
       in
       {
         devShells.default = import ./devShell.nix {
           inherit pkgs lib devPackages notices;
+          go = golangPackages.go or null;
+          goAttr = golangPackages.goAttr or null;
+          wantGoAttr = golangPackages.wantGoAttr or null;
         };
 
-        checks = {};
+        checks = {}
+          // (import ./golang/test-checks.nix { inherit pkgs lib devPackages projectRoot; })
+          // (import ./golang/build-checks.nix { inherit pkgs lib devPackages projectRoot; })
+          ;
       });
 }

@@ -19,14 +19,21 @@
         pkgs = import nixpkgs { inherit system; };
         lib = pkgs.lib;
 
-        devPackages = [];
+        golangPackages = import ./golang/packages.nix { inherit pkgs lib; };
 
-        notices = [];
+        devPackages = []
+          ++ golangPackages.packages;
+
+        notices = []
+          ++ golangPackages.notices;
 
       in
       {
         devShells.default = import ./devShell.nix {
           inherit pkgs lib devPackages notices;
+          go = golangPackages.go or null;
+          goAttr = golangPackages.goAttr or null;
+          wantGoAttr = golangPackages.wantGoAttr or null;
         };
 
         checks = {};
