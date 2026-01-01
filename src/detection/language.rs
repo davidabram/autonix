@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Language {
     Go,
     Rust,

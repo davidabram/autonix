@@ -3,14 +3,12 @@
 { pkgs, lib }:
 
 let
-  wantGoAttr = "go";
-  goAttr = if builtins.hasAttr wantGoAttr pkgs then wantGoAttr else "go";
-  go = pkgs.${goAttr};
+  go = pkgs.go-bin.stable;
 
   notices = [];
 in
 {
-  inherit go goAttr wantGoAttr notices;
+  inherit go notices;
 
   packages = [
     go
