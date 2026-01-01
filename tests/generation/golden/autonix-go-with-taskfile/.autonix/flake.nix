@@ -11,12 +11,19 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    go-overlay = {
+      url = "github:purpleclay/go-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, go-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        overlays = [
+          (import ./golang/overlay.nix { inherit go-overlay; })
+        ];
+        pkgs = import nixpkgs { inherit system overlays; };
         lib = pkgs.lib;
 
         golangPackages = import ./golang/packages.nix { inherit pkgs lib; };
@@ -39,8 +46,6 @@
         devShells.default = import ./devShell.nix {
           inherit pkgs lib devPackages notices;
           go = golangPackages.go or null;
-          goAttr = golangPackages.goAttr or null;
-          wantGoAttr = golangPackages.wantGoAttr or null;
         };
 
         checks = {}

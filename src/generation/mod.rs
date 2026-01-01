@@ -10,7 +10,9 @@ use std::{
 use crate::detection::ProjectMetadata;
 
 pub use dev_flake::generate_dev_flake;
-pub use dev_flake::{CheckCategory, CheckFile, GeneratedFlake, LanguagePackages};
+pub use dev_flake::{
+    CheckCategory, CheckFile, GeneratedFlake, LanguagePackages, OverlayFile, OverlaySpec,
+};
 
 pub fn write_dev_flake(metadata: &ProjectMetadata, root: &Path) -> Result<(), std::io::Error> {
     let flake = generate_dev_flake(metadata, root);
@@ -21,10 +23,10 @@ pub fn write_dev_flake(metadata: &ProjectMetadata, root: &Path) -> Result<(), st
     fs::write(autonix_dir.join("flake.nix"), flake.main_flake)?;
     fs::write(autonix_dir.join("devShell.nix"), flake.devshell)?;
 
-    if let Some(overlay) = flake.rust_overlay {
-        let rust_dir = autonix_dir.join("rust");
-        fs::create_dir_all(&rust_dir)?;
-        fs::write(rust_dir.join("overlay.nix"), overlay)?;
+    for overlay_file in flake.overlay_files {
+        let lang_dir = autonix_dir.join(overlay_file.language.dir_name());
+        fs::create_dir_all(&lang_dir)?;
+        fs::write(lang_dir.join("overlay.nix"), overlay_file.content)?;
     }
 
     for lang_pkg in flake.language_packages {

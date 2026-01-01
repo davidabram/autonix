@@ -3,16 +3,18 @@
 { pkgs, lib }:
 
 let
-  wantGoAttr = "go_1_25";
-  goAttr = if builtins.hasAttr wantGoAttr pkgs then wantGoAttr else "go";
-  go = pkgs.${goAttr};
+  wantGoVersion = "1.25";
+  go =
+    if builtins.hasAttr wantGoVersion pkgs.go-bin
+    then pkgs.go-bin.${wantGoVersion}
+    else pkgs.go-bin.stable;
 
   notices = [
-    "Go: requested 1.25.4 (from GoModDirective) -> want go_1_25 note: nixpkgs provides Go by major/minor (patch may differ)"
+    "Go: requested 1.25.4 (from GoModDirective) -> want 1.25 (go-overlay provides major.minor; patch may differ)"
   ];
 in
 {
-  inherit go goAttr wantGoAttr notices;
+  inherit go notices;
 
   packages = [
     go

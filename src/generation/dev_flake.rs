@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Write as _,
     fs,
     path::{Path, PathBuf},
@@ -18,6 +18,40 @@ use crate::generation::nix_builder;
 pub enum CheckCategory {
     Test,
     Build,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct OverlaySpec {
+    pub input_name: String,
+    pub flake_url: String,
+    pub language: Language,
+    pub follows_nixpkgs: bool,
+}
+
+impl OverlaySpec {
+    pub fn rust_overlay() -> Self {
+        Self {
+            input_name: "rust-overlay".to_string(),
+            flake_url: "github:oxalica/rust-overlay".to_string(),
+            language: Language::Rust,
+            follows_nixpkgs: true,
+        }
+    }
+
+    pub fn go_overlay() -> Self {
+        Self {
+            input_name: "go-overlay".to_string(),
+            flake_url: "github:purpleclay/go-overlay".to_string(),
+            language: Language::Go,
+            follows_nixpkgs: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OverlayFile {
+    pub language: Language,
+    pub content: String,
 }
 
 #[derive(Debug, Clone)]
@@ -40,7 +74,7 @@ pub struct GeneratedFlake {
     pub devshell: String,
     pub language_packages: Vec<LanguagePackages>,
     pub check_files: Vec<CheckFile>,
-    pub rust_overlay: Option<String>,
+    pub overlay_files: Vec<OverlayFile>,
 }
 
 #[derive(Debug, Clone)]
@@ -109,9 +143,9 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> GeneratedF
     );
     let rust_version = best_version_info(metadata, Language::Rust, constants::RUST_VERSION_SOURCES);
 
-    let go_want_attr = go_version
+    let go_want_version = go_version
         .and_then(|v| v.parsed.as_ref())
-        .and_then(go_attr_from_version);
+        .and_then(go_version_string_from_version);
     let python_want_attr = python_version
         .and_then(|v| v.parsed.as_ref())
         .and_then(python_attr_from_version);
@@ -142,9 +176,7 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> GeneratedF
     let required_node_tools = required_node_tools(&task_runners);
     let required_task_runner_tools = required_task_runner_tools(metadata);
 
-    let uses_rust_overlay = need_rust;
-
-    let go_notice = go_notice(go_version, go_want_attr.as_deref());
+    let go_notice = go_notice(go_version, go_want_version.as_deref());
     let python_notice = python_notice(python_version, python_want_attr.as_deref());
     let node_notice = node_notice(node_version, node_want_attr.as_deref());
     let rust_notice = rust_notice(need_rust, rust_version, rust_want_version.as_deref());
@@ -152,10 +184,9 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> GeneratedF
     let mut language_packages = Vec::new();
 
     if need_go {
-        let want_go_attr = go_want_attr.as_deref().unwrap_or("go");
         language_packages.push(LanguagePackages {
             language: Language::Go,
-            content: generate_golang_packages_nix(want_go_attr, go_notice.as_deref()),
+            content: generate_golang_packages_nix(go_want_version.as_deref(), go_notice.as_deref()),
         });
     }
 
@@ -195,7 +226,21 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> GeneratedF
         });
     }
 
-    let rust_overlay = uses_rust_overlay.then(generate_rust_overlay_nix);
+    let mut overlays: BTreeMap<Language, OverlaySpec> = BTreeMap::new();
+    if need_rust {
+        overlays.insert(Language::Rust, OverlaySpec::rust_overlay());
+    }
+    if need_go {
+        overlays.insert(Language::Go, OverlaySpec::go_overlay());
+    }
+
+    let overlay_files: Vec<OverlayFile> = overlays
+        .iter()
+        .map(|(lang, spec)| OverlayFile {
+            language: lang.clone(),
+            content: generate_overlay_nix(spec),
+        })
+        .collect();
 
     let devshell = generate_devshell_nix();
     let check_files = generate_check_files(&checks_by_lang);
@@ -205,7 +250,7 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> GeneratedF
         need_python,
         need_node,
         need_rust,
-        uses_rust_overlay,
+        &overlays,
         &check_files,
         &required_task_runner_tools,
     );
@@ -215,7 +260,7 @@ pub fn generate_dev_flake(metadata: &ProjectMetadata, root: &Path) -> GeneratedF
         devshell,
         language_packages,
         check_files,
-        rust_overlay,
+        overlay_files,
     }
 }
 
@@ -314,17 +359,17 @@ fn generate_version_notice(
     )
 }
 
-fn go_notice(go_version: Option<&VersionInfo>, go_want_attr: Option<&str>) -> Option<String> {
+fn go_notice(go_version: Option<&VersionInfo>, go_want_version: Option<&str>) -> Option<String> {
     let patch_note = go_version
         .and_then(|v| v.parsed.as_ref())
         .filter(|p| p.patch.is_some())
-        .map(|_| "note: nixpkgs provides Go by major/minor (patch may differ)");
+        .map(|_| "(go-overlay provides major.minor; patch may differ)");
 
     generate_version_notice(
         "Go",
         go_version,
-        go_want_attr,
-        "go (unversioned; go_* not inferred)",
+        go_want_version,
+        "stable (go-bin.stable)",
         patch_note,
     )
 }
@@ -408,17 +453,19 @@ fn generate_file_header(description: &str) -> String {
     format!("# Generated by autonix\n# {description}\n")
 }
 
-fn generate_flake_inputs(uses_rust_overlay: bool) -> String {
+fn generate_flake_inputs(overlays: &BTreeMap<Language, OverlaySpec>) -> String {
     let mut out = String::new();
 
     out.push_str("  inputs = {\n");
     out.push_str("    nixpkgs.url = \"github:NixOS/nixpkgs/nixos-unstable\";\n");
     out.push_str("    flake-utils.url = \"github:numtide/flake-utils\";\n");
 
-    if uses_rust_overlay {
-        out.push_str("    rust-overlay = {\n");
-        out.push_str("      url = \"github:oxalica/rust-overlay\";\n");
-        out.push_str("      inputs.nixpkgs.follows = \"nixpkgs\";\n");
+    for spec in overlays.values() {
+        writeln!(out, "    {} = {{", spec.input_name).unwrap();
+        writeln!(out, "      url = \"{}\";", spec.flake_url).unwrap();
+        if spec.follows_nixpkgs {
+            out.push_str("      inputs.nixpkgs.follows = \"nixpkgs\";\n");
+        }
         out.push_str("    };\n");
     }
 
@@ -428,7 +475,7 @@ fn generate_flake_inputs(uses_rust_overlay: bool) -> String {
 }
 
 fn generate_flake_let_bindings(
-    uses_rust_overlay: bool,
+    overlays: &BTreeMap<Language, OverlaySpec>,
     need_go: bool,
     need_python: bool,
     need_node: bool,
@@ -439,8 +486,18 @@ fn generate_flake_let_bindings(
 
     out.push_str("      let\n");
 
-    if uses_rust_overlay {
-        out.push_str("        overlays = [ (import ./rust/overlay.nix { inherit rust-overlay; }) ];\n");
+    if !overlays.is_empty() {
+        out.push_str("        overlays = [\n");
+        for spec in overlays.values() {
+            let lang_dir = spec.language.dir_name();
+            writeln!(
+                out,
+                "          (import ./{lang_dir}/overlay.nix {{ inherit {}; }})",
+                spec.input_name
+            )
+            .unwrap();
+        }
+        out.push_str("        ];\n");
         out.push_str("        pkgs = import nixpkgs { inherit system overlays; };\n");
     } else {
         out.push_str("        pkgs = import nixpkgs { inherit system; };\n");
@@ -463,9 +520,7 @@ fn generate_flake_let_bindings(
         );
     }
     if need_rust {
-        out.push_str(
-            "        rustPackages = import ./rust/packages.nix { inherit pkgs lib; };\n",
-        );
+        out.push_str("        rustPackages = import ./rust/packages.nix { inherit pkgs lib; };\n");
     }
     if need_go || need_python || need_node || need_rust {
         out.push('\n');
@@ -541,8 +596,6 @@ fn generate_devshell_binding(
 
     if need_go {
         out.push_str("          go = golangPackages.go or null;\n");
-        out.push_str("          goAttr = golangPackages.goAttr or null;\n");
-        out.push_str("          wantGoAttr = golangPackages.wantGoAttr or null;\n");
     }
     if need_python {
         out.push_str("          python = pythonPackages.python or null;\n");
@@ -589,7 +642,7 @@ fn generate_main_flake(
     need_python: bool,
     need_node: bool,
     need_rust: bool,
-    uses_rust_overlay: bool,
+    overlays: &BTreeMap<Language, OverlaySpec>,
     check_files: &[CheckFile],
     required_task_runner_tools: &BTreeSet<&'static str>,
 ) -> String {
@@ -600,17 +653,17 @@ fn generate_main_flake(
     out.push_str("{\n");
     out.push_str("  description = \"Generated by autonix (devShells.default + checks)\";\n\n");
 
-    out.push_str(&generate_flake_inputs(uses_rust_overlay));
+    out.push_str(&generate_flake_inputs(overlays));
 
     out.push_str("  outputs = { self, nixpkgs, flake-utils");
-    if uses_rust_overlay {
-        out.push_str(", rust-overlay");
+    for spec in overlays.values() {
+        write!(out, ", {}", spec.input_name).unwrap();
     }
     out.push_str(" }:\n");
     out.push_str("    flake-utils.lib.eachDefaultSystem (system:\n");
 
     out.push_str(&generate_flake_let_bindings(
-        uses_rust_overlay,
+        overlays,
         need_go,
         need_python,
         need_node,
@@ -661,7 +714,7 @@ fn generate_devshell_nix() -> String {
 
     out.push_str(&generate_file_header("Development shell configuration"));
     out.push_str(
-        "{ pkgs, lib, devPackages, notices ? []\n, go ? null, goAttr ? null, wantGoAttr ? null\n, python ? null, pythonAttr ? null, wantPythonAttr ? null\n, node ? null, nodeAttr ? null, wantNodeAttr ? null\n, rustToolchain ? null\n}:\n\n",
+        "{ pkgs, lib, devPackages, notices ? []\n, go ? null\n, python ? null, pythonAttr ? null, wantPythonAttr ? null\n, node ? null, nodeAttr ? null, wantNodeAttr ? null\n, rustToolchain ? null\n}:\n\n",
     );
 
     out.push_str("pkgs.mkShell {\n");
@@ -671,7 +724,7 @@ fn generate_devshell_nix() -> String {
     out.push_str("    echo \"autonix: generated devShell (best-effort)\"\n\n");
 
     out.push_str(
-        "    ${lib.optionalString (go != null) ''\n      echo \"autonix: Go attr: ${goAttr} (requested ${wantGoAttr})\"\n      if [ \"${goAttr}\" != \"${wantGoAttr}\" ]; then\n        echo \"autonix: NOTE: ${wantGoAttr} not found; using ${goAttr}\"\n      fi\n    ''}\n\n",
+        "    ${lib.optionalString (go != null) ''\n      echo \"autonix: Go toolchain enabled (go-overlay)\"\n    ''}\n\n",
     );
 
     out.push_str(
@@ -696,28 +749,51 @@ fn generate_devshell_nix() -> String {
     out
 }
 
-fn generate_rust_overlay_nix() -> String {
+fn generate_overlay_nix(spec: &OverlaySpec) -> String {
     let mut out = String::new();
-    out.push_str(&generate_file_header("Rust overlay (oxalica/rust-overlay)"));
-    out.push_str("{ rust-overlay }: import rust-overlay\n");
+    let desc = match spec.language {
+        Language::Rust => "Rust overlay (oxalica/rust-overlay)",
+        Language::Go => "Go overlay (purpleclay/go-overlay)",
+        _ => "Language overlay",
+    };
+    out.push_str(&generate_file_header(desc));
+
+    match spec.language {
+        Language::Rust => {
+            writeln!(out, "{{ {0} }}: import {0}", spec.input_name).unwrap();
+        }
+        Language::Go => {
+            writeln!(out, "{{ {0} }}: {0}.overlays.default", spec.input_name).unwrap();
+        }
+        _ => {
+            writeln!(out, "{{ {0} }}: {0}.overlays.default", spec.input_name).unwrap();
+        }
+    }
     out
 }
 
-fn generate_golang_packages_nix(want_go_attr: &str, notice: Option<&str>) -> String {
+fn generate_golang_packages_nix(want_go_version: Option<&str>, notice: Option<&str>) -> String {
     let mut out = String::new();
 
     out.push_str(&generate_file_header("Go toolchain and development tools"));
     out.push_str("{ pkgs, lib }:\n\n");
 
     out.push_str("let\n");
-    nix_builder::write_nix_string_binding(&mut out, "  ", "wantGoAttr", want_go_attr);
-    nix_builder::write_attr_with_fallback(&mut out, "  ", "goAttr", "wantGoAttr", "pkgs", "go");
-    out.push_str("  go = pkgs.${goAttr};\n\n");
+
+    if let Some(version) = want_go_version {
+        nix_builder::write_nix_string_binding(&mut out, "  ", "wantGoVersion", version);
+        out.push_str("  go =\n");
+        out.push_str("    if builtins.hasAttr wantGoVersion pkgs.go-bin\n");
+        out.push_str("    then pkgs.go-bin.${wantGoVersion}\n");
+        out.push_str("    else pkgs.go-bin.stable;\n\n");
+    } else {
+        out.push_str("  go = pkgs.go-bin.stable;\n\n");
+    }
 
     out.push_str(&nix_builder::NoticeListBuilder::new("  ").build(notice));
 
     out.push_str("in\n{\n");
-    out.push_str("  inherit go goAttr wantGoAttr notices;\n\n");
+    out.push_str("  inherit go notices;\n\n");
     out.push_str("  packages = [\n");
     out.push_str("    go\n");
     out.push_str(&format!("    pkgs.{}\n", constants::GO_TOOL_GOPLS));
@@ -1018,10 +1094,10 @@ fn best_version_info<'a>(
     })
 }
 
-fn go_attr_from_version(version: &SemanticVersion) -> Option<String> {
+fn go_version_string_from_version(version: &SemanticVersion) -> Option<String> {
     let major = version.major?;
     let minor = version.minor?;
-    Some(format!("go_{major}_{minor}"))
+    Some(format!("{major}.{minor}"))
 }
 
 fn python_attr_from_version(version: &SemanticVersion) -> Option<String> {
@@ -1494,7 +1570,12 @@ mod tests {
 
         assert!(flake.main_flake.contains("rust-overlay"));
         assert!(flake.main_flake.contains("./rust/overlay.nix"));
-        assert!(flake.rust_overlay.as_deref().is_some());
+        assert!(
+            flake
+                .overlay_files
+                .iter()
+                .any(|f| f.language == Language::Rust)
+        );
 
         let rust_pkgs = language_packages_content(&flake, Language::Rust).unwrap();
         assert!(rust_pkgs.contains("rust-bin.stable.latest.default"));
@@ -1576,7 +1657,15 @@ mod tests {
         let flake = generate_dev_flake(&metadata, dir.path());
 
         let go_pkgs = language_packages_content(&flake, Language::Go).unwrap();
-        assert!(go_pkgs.contains("go_1_21"));
+        assert!(go_pkgs.contains("wantGoVersion = \"1.21\""));
+        assert!(go_pkgs.contains("pkgs.go-bin"));
+        assert!(flake.main_flake.contains("go-overlay"));
+        assert!(
+            flake
+                .overlay_files
+                .iter()
+                .any(|f| f.language == Language::Go)
+        );
     }
 
     #[test]
@@ -1808,7 +1897,7 @@ mod tests {
     }
 
     #[test]
-    fn test_go_attr_from_version() {
+    fn test_go_version_string_from_version() {
         let version = SemanticVersion {
             major: Some(1),
             minor: Some(21),
@@ -1817,7 +1906,10 @@ mod tests {
             build: None,
             constraint: VersionConstraint::Exact,
         };
-        assert_eq!(go_attr_from_version(&version), Some("go_1_21".to_string()));
+        assert_eq!(
+            go_version_string_from_version(&version),
+            Some("1.21".to_string())
+        );
     }
 
     #[test]
@@ -2059,26 +2151,52 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_flake_inputs_without_rust_overlay() {
-        let result = generate_flake_inputs(false);
+    fn test_generate_flake_inputs_without_overlays() {
+        let overlays = BTreeMap::new();
+        let result = generate_flake_inputs(&overlays);
         assert!(result.contains("nixpkgs.url"));
         assert!(result.contains("flake-utils.url"));
         assert!(!result.contains("rust-overlay"));
+        assert!(!result.contains("go-overlay"));
     }
 
     #[test]
     fn test_generate_flake_inputs_with_rust_overlay() {
-        let result = generate_flake_inputs(true);
+        let mut overlays = BTreeMap::new();
+        overlays.insert(Language::Rust, OverlaySpec::rust_overlay());
+        let result = generate_flake_inputs(&overlays);
         assert!(result.contains("rust-overlay"));
         assert!(result.contains("oxalica/rust-overlay"));
+    }
+
+    #[test]
+    fn test_generate_flake_inputs_with_go_overlay() {
+        let mut overlays = BTreeMap::new();
+        overlays.insert(Language::Go, OverlaySpec::go_overlay());
+        let result = generate_flake_inputs(&overlays);
+        assert!(result.contains("go-overlay"));
+        assert!(result.contains("purpleclay/go-overlay"));
+    }
+
+    #[test]
+    fn test_generate_flake_inputs_with_multiple_overlays() {
+        let mut overlays = BTreeMap::new();
+        overlays.insert(Language::Go, OverlaySpec::go_overlay());
+        overlays.insert(Language::Rust, OverlaySpec::rust_overlay());
+        let result = generate_flake_inputs(&overlays);
+        assert!(result.contains("go-overlay"));
+        assert!(result.contains("rust-overlay"));
     }
 
     #[test]
     fn test_generate_devshell_binding_all_languages() {
         let result = generate_devshell_binding(true, true, true, true);
         assert!(result.contains("golangPackages.go"));
+        assert!(!result.contains("golangPackages.goAttr"));
         assert!(result.contains("pythonPackages.python"));
+        assert!(result.contains("pythonPackages.pythonAttr"));
         assert!(result.contains("nodejsPackages.node"));
+        assert!(result.contains("nodejsPackages.nodeAttr"));
         assert!(result.contains("rustPackages.rustToolchain"));
     }
 
